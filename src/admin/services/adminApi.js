@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://hospital-trustee-fiwe.vercel.app/api';
+// Use localhost for development, production URL for deployed app
+const API_BASE_URL = import.meta.env.DEV 
+  ? 'http://localhost:5002/api'
+  : 'http://localhost:5002/api';
 
 // Create axios instance
 export const adminApi = axios.create({

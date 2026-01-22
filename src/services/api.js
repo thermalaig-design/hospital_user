@@ -3,8 +3,8 @@ import axios from 'axios';
 
 // Use localhost for development, production URL for deployed app
 const API_BASE_URL = import.meta.env.DEV 
-  ? 'http://localhost:5001/api'
-  : 'https://hospital-trustee-fiwe.vercel.app/api';
+  ? 'http://localhost:5002/api'
+  : 'http://localhost:5002/api';
 
 // Create axios instance
 export const api = axios.create({
@@ -236,6 +236,35 @@ export const getProfile = async () => {
   }
 };
 
+// Save user profile
+export const saveProfile = async (profileData, profilePhotoFile) => {
+  try {
+    const user = localStorage.getItem('user');
+    const userId = user ? JSON.parse(user).Mobile || JSON.parse(user).mobile || JSON.parse(user).id : null;
+    
+    if (!userId) {
+      throw new Error('No user found in localStorage');
+    }
+    
+    // Prepare form data
+    const formData = new FormData();
+    formData.append('profileData', JSON.stringify(profileData));
+    if (profilePhotoFile) {
+      formData.append('profilePhoto', profilePhotoFile);
+    }
+    
+    const response = await api.post('/profile/save', formData, {
+      headers: {
+        'user-id': userId
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error saving profile:', error);
+    throw error;
+  }
+};
+
 // Get marquee updates
 export const getMarqueeUpdates = async () => {
   try {
@@ -265,6 +294,59 @@ export const getSponsorById = async (id) => {
     return response.data;
   } catch (error) {
     console.error('Error fetching sponsor:', error);
+    throw error;
+  }
+};
+
+// Get user reports
+export const getUserReports = async () => {
+  try {
+    const user = localStorage.getItem('user');
+    const userId = user ? JSON.parse(user).Mobile || JSON.parse(user).mobile || JSON.parse(user).id : null;
+    
+    if (!userId) {
+      throw new Error('No user found in localStorage');
+    }
+    
+    const response = await api.get('/reports', {
+      headers: {
+        'user-id': userId
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching reports:', error);
+    throw error;
+  }
+};
+
+// Upload user report
+export const uploadUserReport = async (reportData, reportFile) => {
+  try {
+    const user = localStorage.getItem('user');
+    const userId = user ? JSON.parse(user).Mobile || JSON.parse(user).mobile || JSON.parse(user).id : null;
+    
+    if (!userId) {
+      throw new Error('No user found in localStorage');
+    }
+    
+    // Prepare form data
+    const formData = new FormData();
+    formData.append('reportName', reportData.reportName);
+    formData.append('reportType', reportData.reportType);
+    formData.append('testDate', reportData.testDate);
+    if (reportFile) {
+      formData.append('reportFile', reportFile);
+    }
+    
+    const response = await api.post('/reports/upload', formData, {
+      headers: {
+        'user-id': userId
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error uploading report:', error);
     throw error;
   }
 };

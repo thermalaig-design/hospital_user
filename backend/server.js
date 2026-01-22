@@ -24,7 +24,7 @@ dotenv.config();
 
 // Initialize express app
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5002;
 
 // --------------------
 // MIDDLEWARE
@@ -32,16 +32,25 @@ const PORT = process.env.PORT || 5001;
 
 // CORS configuration
 const corsOptions = {
-  origin: [
-    'http://localhost:5173', // Vite default port
-    'http://localhost:3000', // React default port
-    'http://localhost:3001', // Alternative React port
-    'http://localhost:5000', // Alternative port
-    'https://hospital-trustee-fiwe.vercel.app', // Production frontend
-    'https://hospital-trustee-h3cv.vercel.app', // Alternative frontend
-    'https://hospital-management-3-7z4c.onrender.com', // Old backend URL
-    'https://hospital-trustee.vercel.app' // Alternative frontend
-  ],
+  origin: function(origin, callback) {
+    const allowedOrigins = [
+      'http://localhost:5173', // Vite default port
+      'http://localhost:3000', // React default port
+      'http://localhost:3001', // Alternative React port
+      'http://localhost:5002', // Alternative port
+     
+    ];
+    
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   optionsSuccessStatus: 200
 };

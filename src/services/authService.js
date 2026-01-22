@@ -1,7 +1,7 @@
 // authService.js - Frontend API calls
 const API_URL = import.meta.env.DEV 
-  ? 'http://localhost:5001/api/auth' 
-  : 'https://hospital-trustee-fiwe.vercel.app/api/auth';
+  ? 'http://localhost:5002/api/auth' 
+  : 'http://localhost:5002/api/auth';
 
 
 /**

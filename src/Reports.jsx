@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Plus, Calendar, Download, X, Home as HomeIcon, ChevronLeft, Upload, CheckCircle, AlertCircle, Image as ImageIcon, File, Menu } from 'lucide-react';
 import Sidebar from './components/Sidebar';
+import { getUserReports, uploadUserReport } from './services/api';
 
 const Reports = ({ onNavigate }) => {
   const [reports, setReports] = useState([]);
@@ -24,21 +25,9 @@ const Reports = ({ onNavigate }) => {
   const fetchReports = async () => {
     try {
       setLoading(true);
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const userId = user['Membership number'] || user.mobile || user.id;
       
-      if (!userId) {
-        setError('Please log in first');
-        return;
-      }
-
-      const response = await fetch('https://hospital-trustee-fiwe.vercel.app/api/reports', {
-        headers: {
-          'user-id': userId
-        }
-      });
-
-      const data = await response.json();
+      const data = await getUserReports();
+      
       if (data.success) {
         setReports(data.reports || []);
       } else {
@@ -108,30 +97,13 @@ const Reports = ({ onNavigate }) => {
     setSuccess(null);
 
     try {
-      const formData = new FormData();
-      formData.append('reportName', uploadForm.reportName.trim());
-      formData.append('reportType', uploadForm.reportType);
-      formData.append('testDate', uploadForm.testDate);
-      formData.append('reportFile', uploadForm.file);
-
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const userId = user['Membership number'] || user.mobile || user.id;
+      const reportData = {
+        reportName: uploadForm.reportName.trim(),
+        reportType: uploadForm.reportType,
+        testDate: uploadForm.testDate
+      };
       
-      if (!userId) {
-        setError('Please log in first');
-        setLoading(false);
-        return;
-      }
-
-      const response = await fetch('https://hospital-trustee-fiwe.vercel.app/api/reports/upload', {
-        method: 'POST',
-        headers: {
-          'user-id': userId
-        },
-        body: formData
-      });
-
-      const data = await response.json();
+      const data = await uploadUserReport(reportData, uploadForm.file);
       
       if (data.success) {
         setSuccess('Report uploaded successfully!');

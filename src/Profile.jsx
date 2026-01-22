@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Calendar, MapPin, Briefcase, Camera, Save, Shield, BadgeCheck, Phone, Droplet, UserCircle, Home as HomeIcon, Menu, X, Award, Upload, CheckCircle, AlertCircle } from 'lucide-react';
 import Sidebar from './components/Sidebar';
-import { getAllElectedMembers } from './services/api';
+import { getAllElectedMembers, getProfile, saveProfile } from './services/api';
 
 // InputField component definition
 const InputField = ({ label, icon: Icon, type = 'text', value, onChange, placeholder, required = false }) => (
@@ -86,14 +86,8 @@ const Profile = ({ onNavigate, onProfileUpdate }) => {
         return;
       }
 
-      // Try to load from Supabase
-      const response = await fetch('https://hospital-trustee-fiwe.vercel.app/api/profile', {
-        headers: {
-          'user-id': userId
-        }
-      });
-
-      const data = await response.json();
+      // Try to load from Supabase using API service
+      const data = await getProfile();
       
       if (data.success && data.profile) {
         // Map database fields to profile data
@@ -247,52 +241,37 @@ const Profile = ({ onNavigate, onProfileUpdate }) => {
       setMessage({ type: 'error', text: 'Please enter your name' });
       return;
     }
-
+  
     setSaving(true);
     setMessage({ type: '', text: '' });
-
+  
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const userId = user['Membership number'] || user.mobile || user.id;
-      
+        
       if (!userId) {
         setMessage({ type: 'error', text: 'Please log in first' });
         setSaving(false);
         return;
       }
-
-      // Prepare form data
-      const formData = new FormData();
-      formData.append('profileData', JSON.stringify(profileData));
-      if (profilePhotoFile) {
-        formData.append('profilePhoto', profilePhotoFile);
-      }
-
-      const response = await fetch('https://hospital-trustee-fiwe.vercel.app/api/profile/save', {
-        method: 'POST',
-        headers: {
-          'user-id': userId
-        },
-        body: formData
-      });
-
-      const data = await response.json();
-      
+  
+      const data = await saveProfile(profileData, profilePhotoFile);
+        
       if (data.success) {
         setMessage({ type: 'success', text: 'Profile saved successfully!' });
-        
+          
         // Update profile photo URL if uploaded
         if (data.profile && data.profile.profile_photo_url) {
           setProfileData(prev => ({ ...prev, profilePhotoUrl: data.profile.profile_photo_url }));
           setPhotoPreview(data.profile.profile_photo_url);
         }
-        
+          
         // Also save to localStorage as backup
         const userKey = `userProfile_${user.Mobile || user.mobile || user.id || 'default'}`;
         localStorage.setItem(userKey, JSON.stringify(profileData));
-        
+          
         if (onProfileUpdate) onProfileUpdate(profileData);
-        
+          
         // Clear message after 3 seconds
         setTimeout(() => setMessage({ type: '', text: '' }), 3000);
       } else {
