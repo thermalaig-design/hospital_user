@@ -2,8 +2,8 @@ import axios from 'axios';
 
 // Use localhost for development, production URL for deployed app
 const API_BASE_URL = import.meta.env.DEV 
-  ? 'http://localhost:5002/api'
-  : 'http://localhost:5002/api';
+  ? 'http://31.97.205.94:5002/api'
+  : 'http://31.97.205.94:5002/api';
 
 // Create axios instance
 export const adminApi = axios.create({

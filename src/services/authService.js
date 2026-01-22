@@ -1,7 +1,7 @@
 // authService.js - Frontend API calls
 const API_URL = import.meta.env.DEV 
-  ? 'http://localhost:5002/api/auth' 
-  : 'http://localhost:5002/api/auth';
+  ? 'http://31.97.205.94:5002/api/auth' 
+  : 'http://31.97.205.94:5002/api/auth';
 
 
 /**

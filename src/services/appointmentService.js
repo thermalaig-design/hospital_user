@@ -1,7 +1,7 @@
 // appointmentService.js - Frontend service for appointment booking
 import { api } from './api';
 
-const API_URL = 'https://localhost:5002/api';
+const API_URL = 'http://31.97.205.94:5002/api';
 
 /**
  * Book a new appointment
