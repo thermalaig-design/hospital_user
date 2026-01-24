@@ -119,8 +119,8 @@ const Directory = ({ onNavigate }) => {
       { id: 'healthcare', label: 'Healthcare', icon: Stethoscope },
       { id: 'trustees', label: 'Trustees', icon: Star },
       { id: 'patrons', label: 'Patrons', icon: Award },
-      { id: 'committee', label: 'Committee', icon: Users },
       { id: 'elected', label: 'Elected', icon: Star },
+      { id: 'committee', label: 'Committee', icon: Users },
       { id: 'doctors', label: 'Doctors', icon: Stethoscope },
       { id: 'hospitals', label: 'Hospitals', icon: Building2 },
       ...memberTypes.filter(type => 

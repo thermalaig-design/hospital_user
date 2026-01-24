@@ -313,8 +313,8 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
 
   // Committee Directory Tabs
   const committeeTabs = [
-    { id: 'committee', label: `Committee (${getCommitteeCount()})`, icon: Users },
     { id: 'elected', label: `Elected (${getElectedMembersCount()})`, icon: Star },
+    { id: 'committee', label: `Committee (${getCommitteeCount()})`, icon: Users },
   ];
 
   // Get current tabs based on selected directory

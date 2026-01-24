@@ -4,22 +4,56 @@ import Sidebar from './components/Sidebar';
 import { getAllElectedMembers, getProfile, saveProfile } from './services/api';
 
 // InputField component definition
-const InputField = ({ label, icon: Icon, type = 'text', value, onChange, placeholder, required = false }) => (
-  <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm transition-all hover:border-indigo-300 focus-within:border-indigo-500 focus-within:shadow-md">
+const InputField = ({ label, icon: Icon, type = 'text', value, onChange, placeholder, required = false, disabled = false }) => (
+  <div className={`bg-white rounded-2xl p-4 border border-gray-200 shadow-sm transition-all ${disabled ? 'bg-gray-100 opacity-70' : 'hover:border-indigo-300 focus-within:border-indigo-500 focus-within:shadow-md'}`}>
     <label className="block text-xs font-bold text-gray-600 mb-2 ml-1">
       {label} {required && <span className="text-red-500">*</span>}
     </label>
+    
     <div className="flex items-center gap-3">
-      <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600">
+      <div className={`p-2 rounded-xl ${disabled ? 'bg-gray-200 text-gray-500' : 'bg-indigo-50 text-indigo-600'}`}>
         {Icon && <Icon className="h-4 w-4" />}
       </div>
       <input
         type={type}
         value={value || ''}
         onChange={(e) => onChange(e.target.value)}
-        className="flex-1 text-sm font-medium text-gray-800 bg-transparent focus:outline-none placeholder:font-normal placeholder:text-gray-400"
+        className={`flex-1 text-sm font-medium ${disabled ? 'text-gray-600 bg-gray-100 cursor-not-allowed' : 'text-gray-800 bg-transparent'} focus:outline-none placeholder:font-normal placeholder:text-gray-400`}
         placeholder={placeholder || `Enter ${label}`}
+        disabled={disabled}
       />
+    </div>
+  </div>
+);
+
+// SelectField component definition
+const SelectField = ({ label, icon: Icon, value, onChange, options, placeholder, required = false, disabled = false }) => (
+  <div className={`bg-white rounded-2xl p-4 border border-gray-200 shadow-sm transition-all ${disabled ? 'bg-gray-100 opacity-70' : 'hover:border-indigo-300 focus-within:border-indigo-500 focus-within:shadow-md'}`}>
+    <label className="block text-xs font-bold text-gray-600 mb-2 ml-1">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    <div className="flex items-center gap-3 relative">
+      <div className={`p-2 rounded-xl ${disabled ? 'bg-gray-200 text-gray-500' : 'bg-indigo-50 text-indigo-600'}`}>
+        {Icon && <Icon className="h-4 w-4" />}
+      </div>
+      <select
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value)}
+        className={`flex-1 text-sm font-medium ${disabled ? 'text-gray-600 bg-gray-100 cursor-not-allowed' : 'text-gray-800 bg-transparent'} focus:outline-none appearance-none pr-8`}
+        disabled={disabled}
+      >
+        <option value="">{placeholder || `Select ${label}`}</option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <div className="absolute right-3 pointer-events-none">
+        <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </div>
     </div>
   </div>
 );
@@ -406,6 +440,7 @@ const Profile = ({ onNavigate, onProfileUpdate }) => {
               onChange={(val) => setProfileData({ ...profileData, name: val })}
               placeholder="e.g. Rajesh Kumar"
               required
+              disabled
             />
             <InputField
               label="Mobile Number"
@@ -413,6 +448,7 @@ const Profile = ({ onNavigate, onProfileUpdate }) => {
               value={profileData.mobile}
               onChange={(val) => setProfileData({ ...profileData, mobile: val })}
               placeholder="00000 00000"
+              disabled
             />
             <InputField
               label="Member ID"
@@ -420,6 +456,7 @@ const Profile = ({ onNavigate, onProfileUpdate }) => {
               value={profileData.memberId}
               onChange={(val) => setProfileData({ ...profileData, memberId: val })}
               placeholder="MAH-2024-XXXX"
+              disabled
             />
             <InputField
               label="Email ID"
@@ -448,19 +485,21 @@ const Profile = ({ onNavigate, onProfileUpdate }) => {
               </>
             )}
             <div className="grid grid-cols-2 gap-4">
-              <InputField
+              <SelectField
                 label="Gender"
                 icon={User}
                 value={profileData.gender}
                 onChange={(val) => setProfileData({ ...profileData, gender: val })}
-                placeholder="Male/Female/Other"
+                options={[{ value: 'Male', label: 'Male' }, { value: 'Female', label: 'Female' }, { value: 'Other', label: 'Other' }]}
+                placeholder="Select Gender"
               />
-              <InputField
+              <SelectField
                 label="Marital Status"
                 icon={User}
                 value={profileData.maritalStatus}
                 onChange={(val) => setProfileData({ ...profileData, maritalStatus: val })}
-                placeholder="Single/Married"
+                options={[{ value: 'Single', label: 'Single' }, { value: 'Married', label: 'Married' }, { value: 'Divorced', label: 'Divorced' }, { value: 'Widowed', label: 'Widowed' }]}
+                placeholder="Select Marital Status"
               />
             </div>
             <InputField
