@@ -155,9 +155,11 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
                 className="h-8 w-8 rounded-lg object-cover border-2 border-indigo-200"
                 onError={(e) => {
                   e.target.onerror = null;
-                  if (userProfile?.name) {
-                    e.target.style.display = 'none';
-                    e.target.nextSibling.style.display = 'flex';
+                  e.target.style.display = 'none';
+                  // Find the next sibling element with class name containing 'bg-indigo'
+                  const nextElement = e.target.parentNode.nextElementSibling;
+                  if (nextElement) {
+                    nextElement.style.display = 'flex';
                   }
                 }}
               />
@@ -304,7 +306,11 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
                       }}
                       onError={(e) => {
                         e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'flex';
+                        // Find the next sibling element
+                        const nextElement = e.target.parentNode.nextElementSibling;
+                        if (nextElement) {
+                          nextElement.style.display = 'flex';
+                        }
                       }}
                     />
                     {/* Realistic Lighting Overlay */}

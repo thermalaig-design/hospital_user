@@ -263,14 +263,14 @@ const MemberDetails = ({ member, onNavigateBack, previousScreenName }) => {
                     )}
                     
                     {/* Display any other elected-specific fields */}
-                    {Object.keys(member).filter(key => 
-                      !['S. No.', 'Name', 'Mobile', 'Email', 'type', 'Membership number', 'isElectedMember', 
-                        'previousScreenName', 'isHealthcareMember', 'isHospitalMember', 'isCommitteeMember',
-                        'Company Name', 'Address Home', 'Address Office', 'Resident Landline', 'Office Landline',
-                        'position', 'location', 'id', 'original_id', 'elected_id', 'membership_number_elected',
-                        'is_merged_with_member', 'created_at'].includes(key) &&
-                      member[key] !== null && member[key] !== undefined && member[key] !== '' && member[key] !== 'N/A'
-                    ).map(key => (
+                      {Object.keys(member).filter(key => 
+                        !['S. No.', 'Name', 'Mobile', 'Email', 'type', 'Membership number', 'isElectedMember', 
+                          'previousScreenName', 'isHealthcareMember', 'isHospitalMember', 'isCommitteeMember',
+                          'Company Name', 'Address Home', 'Address Office', 'Resident Landline', 'Office Landline',
+                          'position', 'location', 'id', 'original_id', 'elected_id', 'membership_number_elected',
+                          'is_merged_with_member', 'created_at', 'updated_at', 'company_name', 'is_committee_member'].includes(key) &&
+                        member[key] !== null && member[key] !== undefined && member[key] !== '' && member[key] !== 'N/A'
+                      ).map(key => (
                       <div key={key} className="flex items-start gap-3 p-4 bg-gray-50 rounded-2xl">
                         <FileText className="h-5 w-5 text-gray-500 mt-0.5 flex-shrink-0" />
                         <div>
@@ -435,24 +435,16 @@ const MemberDetails = ({ member, onNavigateBack, previousScreenName }) => {
                       </div>
                     )}
                     
-                    {member.type && member.type !== 'N/A' && (
-                      <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-2xl">
-                        <User className="h-5 w-5 text-gray-500 mt-0.5 flex-shrink-0" />
-                        <div>
-                          <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Type</p>
-                          <p className="font-medium text-gray-800">{member.type}</p>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Display any other fields that might exist in Supabase */}
-                    {Object.keys(member).filter(key => 
-                      !['S. No.', 'Name', 'Mobile', 'Email', 'type', 'Membership number', 'isCommitteeMember', 
-                        'previousScreenName', 'member_name_english', 'member_name_hindi', 'member_role', 
-                        'committee_name_english', 'committee_name_hindi', 'phone1', 'phone2', 'address', 
-                        'Address Home', 'Address Office', 'id', 'original_id'].includes(key) &&
-                      member[key] !== null && member[key] !== undefined && member[key] !== '' && member[key] !== 'N/A'
-                    ).map(key => (
+                      {/* Display any other fields that might exist in Supabase */}
+                      {Object.keys(member).filter(key => 
+                        !['S. No.', 'Name', 'Mobile', 'Email', 'type', 'Membership number', 'isCommitteeMember', 
+                          'previousScreenName', 'member_name_english', 'member_name_hindi', 'member_role', 
+                          'committee_name_english', 'committee_name_hindi', 'phone1', 'phone2', 'address', 
+                          'Address Home', 'Address Office', 'id', 'original_id', 'company_name', 'Company Name', 
+                          'created_at', 'Created At', 'updated_at', 'Updated At', 'is_committee_member', 
+                          'Is Committee Member', 'is_committee_group', 'committee_members'].includes(key) &&
+                        member[key] !== null && member[key] !== undefined && member[key] !== '' && member[key] !== 'N/A'
+                      ).map(key => (
                       <div key={key} className="flex items-start gap-3 p-4 bg-gray-50 rounded-2xl">
                         <FileText className="h-5 w-5 text-gray-500 mt-0.5 flex-shrink-0" />
                         <div>
