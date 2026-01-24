@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { User, Mail, Calendar, MapPin, Briefcase, Award, Users, Search, Phone, Star, Stethoscope, Building2, ChevronRight, Filter, ArrowLeft, Menu, LogOut, Bell, Heart, ArrowRight, X, Home as HomeIcon, Clock, FileText, UserPlus, Pill, ChevronLeft } from 'lucide-react';
-import { getMemberTypes, getAllHospitals, getAllElectedMembers, getAllCommitteeMembers, getMembersPage } from './services/api';
+import { getMemberTypes, getAllHospitals, getAllElectedMembers, getAllCommitteeMembers, getMembersPage, getProfilePhotos } from './services/api';
 import Sidebar from './components/Sidebar';
 
 const CACHE_KEY = 'directory_data_cache';
@@ -16,29 +16,26 @@ const Directory = ({ onNavigate }) => {
   const [electedMembers, setElectedMembers] = useState([]);
   const [committeeMembers, setCommitteeMembers] = useState([]);
   const [memberTypes, setMemberTypes] = useState([]);
-  const [loading, setLoading] = useState(false); // Always false - no loading indicator
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalMembersCount, setTotalMembersCount] = useState(null);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [profilePhotos, setProfilePhotos] = useState({}); // Store profile photos
   const loadedTabsRef = useRef(new Set()); // Track which tabs have loaded data
   const itemsPerPage = 20;
+  const loadTabDataRef = useRef(null); // Reference to store the loadTabData function
 
   // Restore directory tab when coming back from member details
   useEffect(() => {
     const restoreTab = sessionStorage.getItem('restoreDirectoryTab');
     if (restoreTab) {
-      setDirectoryTab(restoreTab);
-      sessionStorage.removeItem('restoreDirectoryTab');
+      const timer = setTimeout(() => {
+        setDirectoryTab(restoreTab);
+        sessionStorage.removeItem('restoreDirectoryTab');
+      }, 0);
+      
+      return () => clearTimeout(timer);
     }
-  }, []);
-
-  // Load minimal data on mount - only first page of members
-  useEffect(() => {
-    // Set dataLoaded immediately so UI shows instantly
-    setDataLoaded(true);
-    // Load only first page of members initially
-    loadTabData('healthcare');
   }, []);
 
   // Load data for specific tab - lazy loading
@@ -55,6 +52,25 @@ const Directory = ({ onNavigate }) => {
           const res = await getMembersPage(1, itemsPerPage);
           setAllMembers(res?.data || []);
           setTotalMembersCount(res?.count ?? null);
+          
+          // Fetch profile photos for trustees and patrons after loading members
+          if (tabId === 'trustees' || tabId === 'patrons' || tabId === 'all') {
+            const memberIds = res?.data
+              .filter(member => member['Membership number'] || member.Mobile || member['S. No.'])
+              .map(member => member['Membership number'] || member.Mobile || member['S. No.'])
+              .filter(Boolean);
+            
+            if (memberIds && memberIds.length > 0) {
+              try {
+                const photosResponse = await getProfilePhotos(memberIds);
+                if (photosResponse.success && photosResponse.photos) {
+                  setProfilePhotos(prev => ({ ...prev, ...photosResponse.photos }));
+                }
+              } catch (photoErr) {
+                console.error('Error fetching profile photos:', photoErr);
+              }
+            }
+          }
         }
         // Load member types if not loaded
         if (memberTypes.length === 0) {
@@ -74,6 +90,23 @@ const Directory = ({ onNavigate }) => {
         if (electedMembers.length === 0) {
           const electedRes = await getAllElectedMembers();
           setElectedMembers(electedRes?.data || []);
+          
+          // Fetch profile photos for elected members
+          const memberIds = electedRes?.data
+            .filter(member => member['Membership number'] || member.Mobile || member['S. No.'] || member.membership_number_elected)
+            .map(member => member['Membership number'] || member.Mobile || member['S. No.'] || member.membership_number_elected)
+            .filter(Boolean);
+          
+          if (memberIds && memberIds.length > 0) {
+            try {
+              const photosResponse = await getProfilePhotos(memberIds);
+              if (photosResponse.success && photosResponse.photos) {
+                setProfilePhotos(prev => ({ ...prev, ...photosResponse.photos }));
+              }
+            } catch (photoErr) {
+              console.error('Error fetching profile photos for elected members:', photoErr);
+            }
+          }
         }
         loadedTabsRef.current.add(tabId);
       } else if (tabId === 'committee') {
@@ -84,6 +117,23 @@ const Directory = ({ onNavigate }) => {
           // Full members will be loaded when user clicks on a specific committee
           const committeeRes = await getAllCommitteeMembers();
           setCommitteeMembers(committeeRes?.data || []);
+          
+          // Fetch profile photos for committee members
+          const memberIds = committeeRes?.data
+            .filter(member => member['Membership number'] || member.Mobile || member['S. No.'] || member.member_id)
+            .map(member => member['Membership number'] || member.Mobile || member['S. No.'] || member.member_id)
+            .filter(Boolean);
+          
+          if (memberIds && memberIds.length > 0) {
+            try {
+              const photosResponse = await getProfilePhotos(memberIds);
+              if (photosResponse.success && photosResponse.photos) {
+                setProfilePhotos(prev => ({ ...prev, ...photosResponse.photos }));
+              }
+            } catch (photoErr) {
+              console.error('Error fetching profile photos for committee members:', photoErr);
+            }
+          }
         }
         loadedTabsRef.current.add(tabId);
       } else {
@@ -92,6 +142,25 @@ const Directory = ({ onNavigate }) => {
           const res = await getMembersPage(1, itemsPerPage);
           setAllMembers(res?.data || []);
           setTotalMembersCount(res?.count ?? null);
+          
+          // Fetch profile photos for trustees and patrons if this is one of those tabs
+          if (tabId === 'trustees' || tabId === 'patrons' || tabId === 'all') {
+            const memberIds = res?.data
+              .filter(member => member['Membership number'] || member.Mobile || member['S. No.'])
+              .map(member => member['Membership number'] || member.Mobile || member['S. No.'])
+              .filter(Boolean);
+            
+            if (memberIds && memberIds.length > 0) {
+              try {
+                const photosResponse = await getProfilePhotos(memberIds);
+                if (photosResponse.success && photosResponse.photos) {
+                  setProfilePhotos(prev => ({ ...prev, ...photosResponse.photos }));
+                }
+              } catch (photoErr) {
+                console.error('Error fetching profile photos:', photoErr);
+              }
+            }
+          }
         }
         if (memberTypes.length === 0) {
           const typesRes = await getMemberTypes();
@@ -103,12 +172,28 @@ const Directory = ({ onNavigate }) => {
       console.error(`Error loading data for tab ${tabId}:`, err);
       setError(`Failed to load data: ${err.message || 'Please make sure backend server is running'}`);
     }
-  }, [allMembers.length, hospitals.length, electedMembers.length, committeeMembers.length, memberTypes.length, itemsPerPage]);
+  }, [allMembers.length, hospitals.length, electedMembers.length, committeeMembers.length, memberTypes.length, itemsPerPage, getProfilePhotos]);
+
+  // Load minimal data on mount - only first page of members
+  useEffect(() => {
+    // Set dataLoaded immediately so UI shows instantly
+    const timer = setTimeout(() => {
+      setDataLoaded(true);
+      // Load only first page of members initially
+      loadTabData('healthcare');
+    }, 0);
+    
+    return () => clearTimeout(timer);
+  }, []); // loadTabData is now defined
 
   // Load data when tab changes
   useEffect(() => {
     if (dataLoaded) {
-      loadTabData(directoryTab);
+      const timer = setTimeout(() => {
+        loadTabData(directoryTab);
+      }, 0);
+      
+      return () => clearTimeout(timer);
     }
   }, [directoryTab, dataLoaded, loadTabData]);
 
@@ -273,32 +358,91 @@ const Directory = ({ onNavigate }) => {
 
   const membersForTab = useMemo(() => getMembersByTab(directoryTab), [directoryTab, getMembersByTab]);
 
+  // Helper function to get profile photo URL for a member
+  const getProfilePhoto = (member) => {
+    if (!member) return null;
+    
+    // Try to match by membership number first
+    if (member['Membership number'] && profilePhotos[member['Membership number']]) {
+      return profilePhotos[member['Membership number']];
+    }
+    
+    // Then try mobile number
+    if (member.Mobile && profilePhotos[member.Mobile]) {
+      return profilePhotos[member.Mobile];
+    }
+    
+    // Then try S. No.
+    if (member['S. No.'] && profilePhotos[member['S. No.']]) {
+      return profilePhotos[member['S. No.']];
+    }
+    
+    // Try with user_identifier if available
+    if (member.user_identifier && profilePhotos[member.user_identifier]) {
+      return profilePhotos[member.user_identifier];
+    }
+    
+    return null;
+  };
+
   const filteredMembers = useMemo(() => {
     const q = (searchQuery || '').trim().toLowerCase();
-    if (!q) return membersForTab;
-    return membersForTab.filter(item => {
-      try {
-        return (
-          (item.Name && item.Name.toLowerCase().includes(q)) ||
-          (item.hospital_name && item.hospital_name.toLowerCase().includes(q)) ||
-          (item['Company Name'] && item['Company Name'].toLowerCase().includes(q)) ||
-          (item.trust_name && item.trust_name.toLowerCase().includes(q)) ||
-          (item.type && item.type.toLowerCase().includes(q)) ||
-          (item.hospital_type && item.hospital_type.toLowerCase().includes(q)) ||
-          (item.city && item.city.toLowerCase().includes(q)) ||
-          (item.address && item.address.toLowerCase().includes(q)) ||
-          (item['Membership number'] && item['Membership number'].toLowerCase().includes(q)) ||
-          (item.position && item.position.toLowerCase().includes(q)) ||
-          (item.location && item.location.toLowerCase().includes(q)) ||
-          (item.member_id && item.member_id.toLowerCase().includes(q)) ||
-          (item.Mobile && item.Mobile.toLowerCase().includes(q)) ||
-          (item.Mobile2 && item.Mobile2.toLowerCase().includes(q))
-        );
-      } catch {
-        return false;
+    
+    // If we have search query and we're in a relevant tab, fetch profile photos for matching members
+    if (q && ['trustees', 'patrons', 'elected', 'all'].includes(directoryTab)) {
+      const matchingMembers = membersForTab.filter(item => {
+        try {
+          return (
+            (item.Name && item.Name.toLowerCase().includes(q)) ||
+            (item.hospital_name && item.hospital_name.toLowerCase().includes(q)) ||
+            (item['Company Name'] && item['Company Name'].toLowerCase().includes(q)) ||
+            (item.trust_name && item.trust_name.toLowerCase().includes(q)) ||
+            (item.type && item.type.toLowerCase().includes(q)) ||
+            (item.hospital_type && item.hospital_type.toLowerCase().includes(q)) ||
+            (item.city && item.city.toLowerCase().includes(q)) ||
+            (item.address && item.address.toLowerCase().includes(q)) ||
+            (item['Membership number'] && item['Membership number'].toLowerCase().includes(q)) ||
+            (item.position && item.position.toLowerCase().includes(q)) ||
+            (item.location && item.location.toLowerCase().includes(q)) ||
+            (item.member_id && item.member_id.toLowerCase().includes(q)) ||
+            (item.Mobile && item.Mobile.toLowerCase().includes(q)) ||
+            (item.Mobile2 && item.Mobile2.toLowerCase().includes(q))
+          );
+        } catch {
+          return false;
+        }
+      });
+      
+      // Fetch profile photos for matching members that don't have them loaded
+      const memberIds = matchingMembers
+        .filter(member => member['Membership number'] || member.Mobile || member['S. No.'] || member.membership_number_elected)
+        .map(member => member['Membership number'] || member.Mobile || member['S. No.'] || member.membership_number_elected)
+        .filter(Boolean);
+      
+      if (memberIds && memberIds.length > 0) {
+        // Filter out members that already have photos loaded
+        const idsWithoutPhotos = memberIds.filter(id => !profilePhotos[id]);
+        
+        if (idsWithoutPhotos.length > 0) {
+          // Fetch photos for members that don't have them loaded
+          getProfilePhotos(idsWithoutPhotos)
+            .then(photosResponse => {
+              if (photosResponse.success && photosResponse.photos) {
+                setProfilePhotos(prev => ({ ...prev, ...photosResponse.photos }));
+              }
+            })
+            .catch(photoErr => {
+              console.error('Error fetching profile photos for search results:', photoErr);
+            });
+        }
       }
-    });
-  }, [membersForTab, searchQuery]);
+      
+      return matchingMembers;
+    }
+    
+    // If no search query, return all members for the tab
+    return membersForTab;
+  }, [membersForTab, searchQuery, directoryTab, profilePhotos]);
 
   // Pagination calculations
   const totalPages = Math.ceil(filteredMembers.length / itemsPerPage);
@@ -311,7 +455,28 @@ const Directory = ({ onNavigate }) => {
     try {
       const nextPage = (Math.ceil(allMembers.length / itemsPerPage) || 1) + 1;
       const res = await getMembersPage(nextPage, itemsPerPage);
-      setAllMembers(prev => [...prev, ...(res.data || [])]);
+      const newMembers = res.data || [];
+      
+      // Fetch profile photos for new members if in relevant tabs
+      if (['trustees', 'patrons', 'elected'].includes(directoryTab)) {
+        const memberIds = newMembers
+          .filter(member => member['Membership number'] || member.Mobile || member['S. No.'] || member.membership_number_elected)
+          .map(member => member['Membership number'] || member.Mobile || member['S. No.'] || member.membership_number_elected)
+          .filter(Boolean);
+        
+        if (memberIds && memberIds.length > 0) {
+          try {
+            const photosResponse = await getProfilePhotos(memberIds);
+            if (photosResponse.success && photosResponse.photos) {
+              setProfilePhotos(prev => ({ ...prev, ...photosResponse.photos }));
+            }
+          } catch (photoErr) {
+            console.error('Error fetching profile photos for new members:', photoErr);
+          }
+        }
+      }
+      
+      setAllMembers(prev => [...prev, ...newMembers]);
       if (res.count != null) setTotalMembersCount(res.count);
       setCurrentPage(1);
     } catch (e) {
@@ -325,12 +490,16 @@ const Directory = ({ onNavigate }) => {
   
   // Reset to page 1 when tab or search changes
   useEffect(() => {
-    setCurrentPage(1);
+    const timer = setTimeout(() => {
+      setCurrentPage(1);
+    }, 0);
     
     // Scroll to the content area when tab changes
     if (contentRef.current) {
       contentRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+    
+    return () => clearTimeout(timer);
   }, [directoryTab, searchQuery]);
 
   // Clear debounce timer on unmount
@@ -479,7 +648,7 @@ const Directory = ({ onNavigate }) => {
         {currentPageMembers.length > 0 ? (
           currentPageMembers.map((item) => (
             <div 
-              key={item['S. No.'] || item.id || Math.random()} 
+              key={item['S. No.'] || item.id || item['Membership number'] || `member-${item.Name || 'unknown'}`} 
               className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center gap-4 group hover:shadow-md hover:border-indigo-100 transition-all cursor-pointer"
               onClick={() => {
                 // Check if this is a committee group (committee name)
@@ -622,8 +791,30 @@ const Directory = ({ onNavigate }) => {
                 }
               }}
             >
-              <div className="bg-indigo-50 h-16 w-16 rounded-2xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300">
-                {directoryTab === 'committee' || directoryTab === 'trustees' || directoryTab === 'patrons' || directoryTab === 'elected' ? <User className="h-7 w-7" /> : 
+              <div className="bg-indigo-50 h-16 w-16 rounded-2xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300 overflow-hidden">
+                {directoryTab === 'committee' || directoryTab === 'trustees' || directoryTab === 'patrons' || directoryTab === 'elected' ? (
+                  // Try to find profile photo for this member
+                  (() => {
+                    const memberId = item['Membership number'] || item.Mobile || item['S. No.'] || item.membership_number_elected;
+                    const profilePhoto = profilePhotos[memberId];
+                    
+                    if (profilePhoto) {
+                      return (
+                        <img 
+                          src={profilePhoto} 
+                          alt="Profile" 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = `https://ui-avatars.com/api/?name=${item.Name || 'Member'}&background=6366f1&color=fff&size=128`;
+                          }}
+                        />
+                      );
+                    } else {
+                      return <User className="h-7 w-7" />;
+                    }
+                  })()
+                ) : 
                  directoryTab === 'hospitals' ? <Building2 className="h-7 w-7" /> : <Stethoscope className="h-7 w-7" />}
               </div>
               <div className="flex-1">

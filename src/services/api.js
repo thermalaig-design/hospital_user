@@ -3,8 +3,8 @@ import axios from 'axios';
 
 // Use localhost for development, production URL for deployed app
 const API_BASE_URL = import.meta.env.DEV 
-  ? 'http://31.97.205.94:5002/api'
-  : 'http://31.97.205.94:5002/api';
+  ? 'http://localhost:5002/api'
+  : 'http://localhost:5002/api';
 
 // Create axios instance
 export const api = axios.create({
@@ -351,6 +351,17 @@ export const uploadUserReport = async (reportData, reportFile) => {
   }
 };
 
+
+// Get profile photos for multiple members
+export const getProfilePhotos = async (memberIds) => {
+  try {
+    const response = await api.post('/profile/photos', { memberIds });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching profile photos:', error);
+    throw error;
+  }
+};
 
 export const preloadCommonData = async () => {
   try {

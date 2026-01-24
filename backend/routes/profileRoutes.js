@@ -11,9 +11,11 @@ const upload = multer({
   storage: storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit for profile pictures
   fileFilter: (req, file, cb) => {
+    
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
+
     } else {
       cb(new Error('Invalid file type. Only JPG, PNG, WEBP allowed.'));
     }
@@ -87,6 +89,8 @@ router.post('/save', upload.single('profilePhoto'), async (req, res) => {
     // Upload profile picture if provided
     if (profilePhotoFile) {
       const fileName = `profiles/${dbUserId}/${Date.now()}_${profilePhotoFile.originalname}`;
+      console.log('Attempting to upload profile photo to:', fileName);
+      
       const { error: uploadError } = await supabase.storage
         .from('profiles')
         .upload(fileName, profilePhotoFile.buffer, {
@@ -96,7 +100,17 @@ router.post('/save', upload.single('profilePhoto'), async (req, res) => {
 
       if (uploadError) {
         console.error('Profile photo upload error:', uploadError);
-        return res.status(500).json({ success: false, message: 'Failed to upload profile photo' });
+        console.error('Upload error details:', {
+          message: uploadError.message,
+          code: uploadError.code,
+          statusCode: uploadError.statusCode
+        });
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Failed to upload profile photo',
+          error: uploadError.message,
+          details: uploadError
+        });
       }
 
       // Get public URL
@@ -104,6 +118,7 @@ router.post('/save', upload.single('profilePhoto'), async (req, res) => {
         .from('profiles')
         .getPublicUrl(fileName);
 
+      console.log('Successfully uploaded profile photo, public URL:', urlData.publicUrl);
       profilePhotoUrl = urlData.publicUrl;
     }
 
@@ -145,15 +160,23 @@ router.post('/save', upload.single('profilePhoto'), async (req, res) => {
     };
 
     // Check if profile exists
-    const { data: existingProfile } = await supabase
+    console.log('Checking for existing profile with user_identifier:', userIdHeader);
+    const { data: existingProfile, error: selectError } = await supabase
       .from('user_profiles')
       .select('id')
       .eq('user_identifier', userIdHeader)
       .single();
+      
+    if (selectError) {
+      console.error('Error checking for existing profile:', selectError);
+    } else {
+      console.log('Existing profile check result:', { existingProfile: !!existingProfile });
+    }
 
     let result;
     if (existingProfile) {
       // Update existing profile
+      console.log('Updating existing profile for user:', userIdHeader);
       const { data, error } = await supabase
         .from('user_profiles')
         .update(dbProfileData)
@@ -162,8 +185,12 @@ router.post('/save', upload.single('profilePhoto'), async (req, res) => {
         .single();
 
       result = { data, error };
+      if (error) {
+        console.error('Database update error:', error);
+      }
     } else {
       // Insert new profile
+      console.log('Inserting new profile for user:', userIdHeader);
       const { data, error } = await supabase
         .from('user_profiles')
         .insert(dbProfileData)
@@ -171,11 +198,23 @@ router.post('/save', upload.single('profilePhoto'), async (req, res) => {
         .single();
 
       result = { data, error };
+      if (error) {
+        console.error('Database insert error:', error);
+      }
+    }
+
+    // Make sure we have the correct user_identifier for the response
+    if (result.data) {
+      result.data.user_identifier = userIdHeader;
     }
 
     if (result.error) {
       console.error('DB error:', result.error);
-      return res.status(500).json({ success: false, message: 'Failed to save profile' });
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Failed to save profile',
+        error: result.error.message
+      });
     }
 
     res.json({
@@ -186,6 +225,67 @@ router.post('/save', upload.single('profilePhoto'), async (req, res) => {
 
   } catch (error) {
     console.error('Save error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Get profile photos for multiple members
+router.post('/photos', async (req, res) => {
+  try {
+    const { memberIds } = req.body;
+    
+    if (!memberIds || !Array.isArray(memberIds)) {
+      return res.status(400).json({ success: false, message: 'memberIds array is required' });
+    }
+    
+    // Query the user_profiles table to get photos for the specified member IDs
+    // Build the filter condition manually since we need to check multiple columns
+    let query = supabase
+      .from('user_profiles')
+      .select('user_identifier, profile_photo_url, member_id, mobile')
+      .not('profile_photo_url', 'is', null);
+    
+    // Build the OR condition for member_ids
+    if (memberIds.length > 0) {
+      const conditions = [];
+      memberIds.forEach(id => {
+        conditions.push(`member_id.eq.${id}`);
+        conditions.push(`mobile.eq.${id}`);
+        conditions.push(`user_identifier.eq.${id}`);
+      });
+      query = query.or(conditions.join(','));
+    }
+    
+    // Execute the query
+    const { data: profiles, error } = await query;
+    
+    if (error) {
+      console.error('Fetch profile photos error:', error);
+      return res.status(500).json({ success: false, message: 'Failed to fetch profile photos' });
+    }
+    
+    // Create a map of member_id/mobile to profile photo URL
+    const photoMap = {};
+    profiles.forEach(profile => {
+      if (profile.member_id) {
+        photoMap[profile.member_id] = profile.profile_photo_url;
+      }
+      if (profile.mobile) {
+        photoMap[profile.mobile] = profile.profile_photo_url;
+      }
+      // Also map using user_identifier if available
+      if (profile.user_identifier) {
+        photoMap[profile.user_identifier] = profile.profile_photo_url;
+      }
+    });
+    
+    res.json({
+      success: true,
+      photos: photoMap
+    });
+    
+  } catch (error) {
+    console.error('Fetch profile photos error:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
