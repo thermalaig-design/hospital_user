@@ -58,6 +58,31 @@ const SelectField = ({ label, icon: Icon, value, onChange, options, placeholder,
   </div>
 );
 
+// SelectionGroup component for better visual selection
+const SelectionGroup = ({ label, value, onChange, options, required = false, disabled = false }) => (
+  <div className={`bg-white rounded-2xl p-4 border border-gray-200 shadow-sm transition-all ${disabled ? 'bg-gray-100 opacity-70' : 'hover:border-indigo-300'}`}>
+    <label className="block text-xs font-bold text-gray-600 mb-3 ml-1">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    <div className="flex flex-wrap gap-2">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => !disabled && onChange(option.value)}
+          className={`flex-1 min-w-[80px] py-2.5 px-3 rounded-xl text-xs font-bold transition-all border ${
+            value === option.value
+              ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-100'
+              : 'bg-indigo-50 text-indigo-700 border-indigo-100 hover:bg-indigo-100'
+          } ${disabled ? 'cursor-not-allowed' : 'active:scale-95'}`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  </div>
+);
+
 const Profile = ({ onNavigate, onProfileUpdate }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -484,24 +509,21 @@ const Profile = ({ onNavigate, onProfileUpdate }) => {
                 />
               </>
             )}
-            <div className="grid grid-cols-2 gap-4">
-              <SelectField
-                label="Gender"
-                icon={User}
-                value={profileData.gender}
-                onChange={(val) => setProfileData({ ...profileData, gender: val })}
-                options={[{ value: 'Male', label: 'Male' }, { value: 'Female', label: 'Female' }, { value: 'Other', label: 'Other' }]}
-                placeholder="Select Gender"
-              />
-              <SelectField
-                label="Marital Status"
-                icon={User}
-                value={profileData.maritalStatus}
-                onChange={(val) => setProfileData({ ...profileData, maritalStatus: val })}
-                options={[{ value: 'Single', label: 'Single' }, { value: 'Married', label: 'Married' }, { value: 'Divorced', label: 'Divorced' }, { value: 'Widowed', label: 'Widowed' }]}
-                placeholder="Select Marital Status"
-              />
-            </div>
+              <div className="grid grid-cols-1 gap-4">
+                <SelectionGroup
+                  label="Gender"
+                  value={profileData.gender}
+                  onChange={(val) => setProfileData({ ...profileData, gender: val })}
+                  options={[{ value: 'Male', label: 'Male' }, { value: 'Female', label: 'Female' }, { value: 'Other', label: 'Other' }]}
+                />
+                <SelectionGroup
+                  label="Marital Status"
+                  value={profileData.maritalStatus}
+                  onChange={(val) => setProfileData({ ...profileData, maritalStatus: val })}
+                  options={[{ value: 'Single', label: 'Single' }, { value: 'Married', label: 'Married' }, { value: 'Divorced', label: 'Divorced' }, { value: 'Widowed', label: 'Widowed' }]}
+                />
+              </div>
+
             <InputField
               label="Home Address"
               icon={MapPin}
