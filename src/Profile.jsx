@@ -295,6 +295,12 @@ const Profile = ({ onNavigate, onProfileUpdate }) => {
     }
   };
 
+  const handleRemovePhoto = () => {
+    setProfilePhotoFile(null);
+    setPhotoPreview(null);
+    setProfileData(prev => ({ ...prev, profilePhotoUrl: '' }));
+  };
+
   const handleSave = async () => {
     if (!profileData.name) {
       setMessage({ type: 'error', text: 'Please enter your name' });
@@ -422,10 +428,19 @@ const Profile = ({ onNavigate, onProfileUpdate }) => {
             </div>
             <button 
               onClick={() => document.getElementById('profile-photo-upload').click()}
-              className="absolute -bottom-1 -right-1 bg-indigo-600 p-3 rounded-2xl border-4 border-white text-white shadow-xl hover:bg-indigo-700 transition-all hover:scale-110 active:scale-95"
+              className="absolute -bottom-1 -right-1 bg-indigo-600 p-3 rounded-2xl border-4 border-white text-white shadow-xl hover:bg-indigo-700 transition-all hover:scale-110 active:scale-95 z-10"
             >
               <Camera className="h-4 w-4" />
             </button>
+            {photoPreview && (
+              <button 
+                onClick={handleRemovePhoto}
+                className="absolute -top-1 -right-1 bg-red-500 p-2 rounded-xl border-4 border-white text-white shadow-lg hover:bg-red-600 transition-all hover:scale-110 active:scale-95 z-10"
+                title="Remove Photo"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
             <input
               id="profile-photo-upload"
               type="file"
