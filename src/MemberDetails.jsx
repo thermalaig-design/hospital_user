@@ -1,7 +1,38 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Users, Stethoscope, Building2, Star, Award, ChevronLeft, Phone, Mail, MapPin, FileText, Clock } from 'lucide-react';
+import { getProfilePhotos } from './services/api';
 
 const MemberDetails = ({ member, onNavigateBack, previousScreenName }) => {
+  const [profilePhoto, setProfilePhoto] = useState(null);
+
+  useEffect(() => {
+    const fetchPhoto = async () => {
+      const memberIds = [];
+      if (member['Membership number']) memberIds.push(member['Membership number']);
+      if (member.membership_number) memberIds.push(member.membership_number);
+      if (member.Mobile) memberIds.push(member.Mobile);
+      if (member.mobile) memberIds.push(member.mobile);
+      if (member.phone1) memberIds.push(member.phone1);
+      if (member.phone2) memberIds.push(member.phone2);
+      if (member.member_id) memberIds.push(member.member_id);
+      
+      const idsToFetch = memberIds.filter(id => id && id !== 'N/A');
+      if (idsToFetch.length === 0) return;
+      
+      try {
+        const response = await getProfilePhotos(idsToFetch);
+        if (response.success && response.photos) {
+          const photo = idsToFetch.map(id => response.photos[id]).find(p => p);
+          if (photo) setProfilePhoto(photo);
+        }
+      } catch (err) {
+        console.error('Error fetching member photo:', err);
+      }
+    };
+    
+    fetchPhoto();
+  }, [member]);
+
   // Get screen name for back button
   const getScreenName = () => {
     if (!previousScreenName) return 'Directory';
@@ -48,11 +79,33 @@ const MemberDetails = ({ member, onNavigateBack, previousScreenName }) => {
       <div className="p-6">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-center gap-4 mb-6">
-            <div className="bg-indigo-100 p-4 rounded-2xl">
-              {member.type && member.type.toLowerCase().includes('doctor') ? <Stethoscope className="h-8 w-8 text-indigo-600" /> : 
-               member.type && member.type.toLowerCase().includes('committee') ? <Users className="h-8 w-8 text-indigo-600" /> : 
-               member.type && (member.type.toLowerCase().includes('trustee') || member.type.toLowerCase().includes('patron')) ? <Star className="h-8 w-8 text-indigo-600" /> : 
-               <User className="h-8 w-8 text-indigo-600" />}
+            <div className="bg-indigo-100 h-20 w-20 rounded-2xl flex items-center justify-center text-indigo-600 overflow-hidden shadow-sm border border-indigo-200">
+              {profilePhoto ? (
+                <img 
+                  src={profilePhoto} 
+                  alt={member.member_name_english || member.Name || 'Member'} 
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.style.display = 'none';
+                    const iconContainer = e.target.parentElement;
+                    if (member.type && member.type.toLowerCase().includes('doctor')) {
+                      iconContainer.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-stethoscope h-8 w-8 text-indigo-600"><path d="M4.8 2.3A.3.3 0 1 0 5 2a.3.3 0 0 0-.2.3Z"/><path d="M10 2a2 2 0 0 0-2 2v1a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2Z"/><path d="M10 7v10.5c0 .3.2.5.5.5h3c.3 0 .5-.2.5-.5V7"/><path d="M12 17v4"/><path d="M8 21h8"/></svg>';
+                    } else if (member.type && member.type.toLowerCase().includes('committee')) {
+                      iconContainer.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-users h-8 w-8 text-indigo-600"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+                    } else if (member.type && (member.type.toLowerCase().includes('trustee') || member.type.toLowerCase().includes('patron'))) {
+                      iconContainer.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star h-8 w-8 text-indigo-600"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+                    } else {
+                      iconContainer.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user h-8 w-8 text-indigo-600"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+                    }
+                  }}
+                />
+              ) : (
+                member.type && member.type.toLowerCase().includes('doctor') ? <Stethoscope className="h-8 w-8 text-indigo-600" /> : 
+                member.type && member.type.toLowerCase().includes('committee') ? <Users className="h-8 w-8 text-indigo-600" /> : 
+                member.type && (member.type.toLowerCase().includes('trustee') || member.type.toLowerCase().includes('patron')) ? <Star className="h-8 w-8 text-indigo-600" /> : 
+                <User className="h-8 w-8 text-indigo-600" />
+              )}
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-800">{member.member_name_english || member.Name || 'N/A'}</h2>

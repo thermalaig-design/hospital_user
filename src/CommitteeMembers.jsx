@@ -1,7 +1,48 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Users, ChevronLeft, Phone, Mail, MapPin, ChevronRight } from 'lucide-react';
+import { getProfilePhotos } from './services/api';
 
 const CommitteeMembers = ({ committeeData, onNavigateBack, previousScreenName, onNavigate }) => {
+  const [profilePhotos, setProfilePhotos] = useState({});
+
+  useEffect(() => {
+    const fetchPhotos = async () => {
+      const committeeMembers = committeeData.committee_members || [];
+      if (committeeMembers.length === 0) return;
+      
+      const memberIds = new Set();
+      committeeMembers.forEach(item => {
+        if (item.membership_number) memberIds.add(item.membership_number);
+        if (item.phone1) memberIds.add(item.phone1);
+        if (item.phone2) memberIds.add(item.phone2);
+        if (item.Mobile) memberIds.add(item.Mobile);
+        if (item.member_id) memberIds.add(item.member_id);
+      });
+      
+      const idsToFetch = Array.from(memberIds).filter(id => id && id !== 'N/A');
+      if (idsToFetch.length === 0) return;
+      
+      try {
+        const response = await getProfilePhotos(idsToFetch);
+        if (response.success && response.photos) {
+          setProfilePhotos(prev => ({ ...prev, ...response.photos }));
+        }
+      } catch (err) {
+        console.error('Error fetching committee profile photos:', err);
+      }
+    };
+    
+    fetchPhotos();
+  }, [committeeData.committee_members]);
+
+  const getMemberPhoto = (item) => {
+    return profilePhotos[item.membership_number] || 
+           profilePhotos[item.phone1] || 
+           profilePhotos[item.phone2] || 
+           profilePhotos[item.Mobile] || 
+           profilePhotos[item.member_id];
+  };
+
   // Get screen name for back button
   const getScreenName = () => {
     if (!previousScreenName) return 'Directory';
@@ -86,8 +127,22 @@ const CommitteeMembers = ({ committeeData, onNavigateBack, previousScreenName, o
                       }
                     }}
                   >
-                    <div className="bg-indigo-50 h-16 w-16 rounded-2xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300">
-                      <User className="h-7 w-7" />
+                    <div className="bg-indigo-50 h-16 w-16 rounded-2xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300 overflow-hidden">
+                      {getMemberPhoto(member) ? (
+                        <img 
+                          src={getMemberPhoto(member)} 
+                          alt={member.member_name_english || member.member_name_hindi || 'Member'} 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.style.display = 'none';
+                            const iconContainer = e.target.parentElement;
+                            iconContainer.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user h-7 w-7"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+                          }}
+                        />
+                      ) : (
+                        <User className="h-7 w-7" />
+                      )}
                     </div>
                     <div className="flex-1">
                       <h3 className="font-bold text-gray-800 text-lg group-hover:text-indigo-600 transition-colors">

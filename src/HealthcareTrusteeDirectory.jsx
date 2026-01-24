@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { User, Users, Stethoscope, Building2, Star, Award, ChevronRight, ChevronLeft, Menu, X, Home as HomeIcon, Clock, FileText, UserPlus, Pill, Phone, Mail, MapPin, Search, Filter, ArrowLeft, ArrowRight } from 'lucide-react';
-import { getAllMembers, getAllCommitteeMembers, getAllHospitals, getAllElectedMembers } from './services/api';
+import { getAllMembers, getAllCommitteeMembers, getAllHospitals, getAllElectedMembers, getProfilePhotos } from './services/api';
 
 const CACHE_KEY_HTD = 'healthcare_trustee_directory_cache';
 const CACHE_TIMESTAMP_KEY_HTD = 'healthcare_trustee_directory_cache_timestamp';
@@ -15,6 +15,7 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
   const [committeeMembers, setCommitteeMembers] = useState([]);
   const [hospitals, setHospitals] = useState([]);
   const [electedMembers, setElectedMembers] = useState([]);
+  const [profilePhotos, setProfilePhotos] = useState({});
   const [loading, setLoading] = useState(false); // Changed to false - show page immediately
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -386,7 +387,47 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
   const endIndex = startIndex + itemsPerPage;
   const currentPageMembers = filteredMembers.slice(startIndex, endIndex);
 
+  // Fetch profile photos for the current page members
+  useEffect(() => {
+    const fetchPhotos = async () => {
+      if (!currentPageMembers.length) return;
+      
+      const memberIds = new Set();
+      currentPageMembers.forEach(item => {
+        // Collect all possible identifiers
+        if (item['Membership number']) memberIds.add(item['Membership number']);
+        if (item.membership_number) memberIds.add(item.membership_number);
+        if (item.Mobile) memberIds.add(item.Mobile);
+        if (item.mobile) memberIds.add(item.mobile);
+        if (item.phone1) memberIds.add(item.phone1);
+        if (item.member_id) memberIds.add(item.member_id);
+      });
+      
+      const idsToFetch = Array.from(memberIds).filter(id => id && id !== 'N/A');
+      if (idsToFetch.length === 0) return;
+      
+      try {
+        const response = await getProfilePhotos(idsToFetch);
+        if (response.success && response.photos) {
+          setProfilePhotos(prev => ({ ...prev, ...response.photos }));
+        }
+      } catch (err) {
+        console.error('Error fetching profile photos:', err);
+      }
+    };
+    
+    fetchPhotos();
+  }, [currentPageMembers]);
 
+  // Helper to get photo for a member
+  const getMemberPhoto = (item) => {
+    return profilePhotos[item['Membership number']] || 
+           profilePhotos[item.membership_number] || 
+           profilePhotos[item.Mobile] || 
+           profilePhotos[item.mobile] || 
+           profilePhotos[item.phone1] || 
+           profilePhotos[item.member_id];
+  };
 
   const containerRef = useRef(null);
   
@@ -822,10 +863,32 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
                     }
                   }}
                 >
-                  <div className="bg-indigo-50 h-16 w-16 rounded-2xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300">
-                    {selectedDirectory === 'healthcare' ? <Stethoscope className="h-7 w-7" /> : 
-                     selectedDirectory === 'committee' ? <Users className="h-7 w-7" /> : <Star className="h-7 w-7" />}
-                  </div>
+                    <div className="bg-indigo-50 h-16 w-16 rounded-2xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300 overflow-hidden">
+                      {getMemberPhoto(item) ? (
+                        <img 
+                          src={getMemberPhoto(item)} 
+                          alt={item.member_name_english || item.Name || 'Member'} 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = ''; // Clear src
+                            // Fallback to icon if image fails
+                            e.target.style.display = 'none';
+                            const iconContainer = e.target.parentElement;
+                            if (selectedDirectory === 'healthcare') {
+                              iconContainer.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-stethoscope h-7 w-7"><path d="M4.8 2.3A.3.3 0 1 0 5 2a.3.3 0 0 0-.2.3Z"/><path d="M10 2a2 2 0 0 0-2 2v1a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2Z"/><path d="M10 7v10.5c0 .3.2.5.5.5h3c.3 0 .5-.2.5-.5V7"/><path d="M12 17v4"/><path d="M8 21h8"/></svg>';
+                            } else if (selectedDirectory === 'committee') {
+                              iconContainer.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-users h-7 w-7"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+                            } else {
+                              iconContainer.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star h-7 w-7"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+                            }
+                          }}
+                        />
+                      ) : (
+                        selectedDirectory === 'healthcare' ? <Stethoscope className="h-7 w-7" /> : 
+                        selectedDirectory === 'committee' ? <Users className="h-7 w-7" /> : <Star className="h-7 w-7" />
+                      )}
+                    </div>
                   <div className="flex-1">
                     <div className="flex justify-between items-start">
                       <div>
