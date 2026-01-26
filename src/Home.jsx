@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Users, Clock, FileText, UserPlus, Bell, ChevronRight, LogOut, Heart, Shield, Plus, ArrowRight, Pill, ShoppingCart, Calendar, Stethoscope, Building2, Phone, QrCode, Monitor, Brain, Package, FileCheck, Search, Filter, MapPin, Star, HelpCircle, BookOpen, Video, Headphones, Menu, X, Home as HomeIcon, Settings, UserCircle } from 'lucide-react';
 import Sidebar from './components/Sidebar';
+import TermsModal from './components/TermsModal';
 import { getProfile, getMarqueeUpdates, getSponsors } from './services/api';
 
 
@@ -8,6 +9,7 @@ import { getProfile, getMarqueeUpdates, getSponsors } from './services/api';
 const Home = ({ onNavigate, onLogout, isMember }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
+  const [showTermsModal, setShowTermsModal] = useState(false);
   const [marqueeUpdates, setMarqueeUpdates] = useState([
     'Free Cardiac Checkup Camp on March 29, 2026',
     'New Specialist Dr. Neha Kapoor Joined',
@@ -103,6 +105,19 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
 
     loadSponsor();
   }, []);
+
+  useEffect(() => {
+    const termsAccepted = localStorage.getItem('terms_accepted');
+    if (!termsAccepted) {
+      setShowTermsModal(true);
+    }
+  }, []);
+
+  const handleAcceptTerms = () => {
+    localStorage.setItem('terms_accepted', 'true');
+    setShowTermsModal(false);
+  };
+
   // const recentNotices = [
   //   { id: 1, title: 'Free Cardiac Checkup', date: 'Dec 29, 2024', tag: 'Health Camp' },
   //   { id: 2, title: 'New Specialist Joined', date: 'Dec 28, 2024', tag: 'Hiring' },
@@ -343,10 +358,17 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
           width: 100%;
           box-sizing: border-box;
           margin: 0 auto;
-        }
-      `}</style>
-    </div>
-  );
-};
+          }
+        `}</style>
+
+        {/* Terms & Conditions Modal */}
+        <TermsModal 
+          isOpen={showTermsModal} 
+          onAccept={handleAcceptTerms} 
+        />
+      </div>
+    );
+  };
+
 
 export default Home;
