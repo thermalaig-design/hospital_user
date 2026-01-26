@@ -5,8 +5,8 @@ const TermsModal = ({ isOpen, onAccept }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+    <div className="fixed inset-y-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm w-full max-w-[430px] left-1/2 -translate-x-1/2">
+      <div className="bg-white w-full max-w-[400px] rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
         <div className="bg-blue-600 p-6 text-white text-center relative">
           <div className="bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
             <ShieldCheck size={32} />

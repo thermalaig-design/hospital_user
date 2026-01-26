@@ -153,7 +153,7 @@ const HospitalTrusteeApp = () => {
   };
 
   return (
-    <div className={`max-w-[430px] mx-auto bg-white shadow-2xl min-h-screen w-full ${
+    <div className={`max-w-[430px] mx-auto bg-white shadow-2xl min-h-screen w-full relative ${
       (location.pathname === '/login' || location.pathname === '/otp-verification' || location.pathname === '/profile') ? 'overflow-hidden' : 'overflow-y-auto'
     }`}>
       <Routes>
