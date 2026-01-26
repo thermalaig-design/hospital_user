@@ -22,7 +22,9 @@ export const bookAppointment = async (req, res, next) => {
       medical_history,
       address,
       user_type,
-      user_id
+      user_id,
+      booking_for,
+      patient_relationship
     } = req.body;
 
     // Validate required fields
@@ -61,6 +63,8 @@ export const bookAppointment = async (req, res, next) => {
           address: address || null,
           user_type: user_type || null,
           user_id: user_id || null,
+          booking_for: booking_for || 'self',
+          patient_relationship: patient_relationship || null,
           status: 'Pending',
           created_at: new Date().toISOString()
         }

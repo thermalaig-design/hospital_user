@@ -10,6 +10,7 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [userData, setUserData] = useState(null);
+  const [bookingFor, setBookingFor] = useState('self'); // State for self/someone toggle
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [dateError, setDateError] = useState('');
 
@@ -24,6 +25,7 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
         // Auto-populate form with user data
         setAppointmentForm({
           ...appointmentForm,
+          bookingFor: 'self', // Default to self
           patientName: parsedUser['Name'] || parsedUser.name || '',
           phone: (parsedUser['Mobile'] || parsedUser.mobile || '').substring(0, 15), // Limit to 15 characters
           email: parsedUser['Email'] || parsedUser.email || '',
@@ -144,7 +146,9 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
         medical_history: appointmentForm.medicalHistory || '',
         address: appointmentForm.address || '',
         user_type: userData?.type || '',
-        user_id: userData?.[' S. No.'] || userData?.id || null
+        user_id: userData?.[' S. No.'] || userData?.id || null,
+        booking_for: appointmentForm.bookingFor || 'self',
+        patient_relationship: appointmentForm.relationship || null
       };
 
       console.log('📤 Submitting appointment:', appointmentData);
@@ -218,10 +222,60 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
         </div>
       )}
 
+      {/* Booking For Toggle */}
+      <div className="mb-4">
+        <div className="flex space-x-2 bg-gray-100 p-1 rounded-xl">
+          <button
+            type="button"
+            className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-colors ${
+              appointmentForm.bookingFor === 'self' 
+                ? 'bg-white text-indigo-600 shadow-sm' 
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+            onClick={() => {
+              setAppointmentForm({
+                ...appointmentForm,
+                bookingFor: 'self',
+                patientName: userData?.['Name'] || userData?.name || '',
+                phone: (userData?.['Mobile'] || userData?.mobile || '').substring(0, 15),
+                email: userData?.['Email'] || userData?.email || '',
+                age: '',
+                gender: '',
+                relationship: ''
+              });
+            }}
+          >
+            For Self
+          </button>
+          <button
+            type="button"
+            className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-colors ${
+              appointmentForm.bookingFor === 'someone' 
+                ? 'bg-white text-indigo-600 shadow-sm' 
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+            onClick={() => {
+              setAppointmentForm({
+                ...appointmentForm,
+                bookingFor: 'someone',
+                patientName: '',
+                phone: '',
+                email: '',
+                age: '',
+                gender: '',
+                relationship: ''
+              });
+            }}
+          >
+            For Someone Else
+          </button>
+        </div>
+      </div>
+
       {/* Appointment Form */}
       <div className="px-6 py-4">
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Patient Name - Auto-populated, Read-only */}
+          {/* Patient Name - Editable based on booking for */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
               Patient Name <span className="text-red-500">*</span>
@@ -234,15 +288,17 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
                 type="text"
                 required
                 value={appointmentForm.patientName}
-                readOnly
-                placeholder="Enter full name"
-                className="block w-full pl-11 pr-4 py-3.5 bg-gray-100 border border-gray-300 rounded-2xl text-gray-700 placeholder-gray-400 cursor-not-allowed text-sm font-medium"
-                title="This field is auto-filled from your profile"
+                onChange={(e) => setAppointmentForm({...appointmentForm, patientName: e.target.value})}
+                placeholder="Enter patient's full name"
+                className={`block w-full pl-11 pr-4 py-3.5 border rounded-2xl placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-medium ${
+                  appointmentForm.bookingFor === 'self' ? 'bg-gray-100 border-gray-300 text-gray-700 cursor-not-allowed' : 'bg-white border-gray-200 text-gray-800 focus:bg-white'
+                }`}
+                readOnly={appointmentForm.bookingFor === 'self'}
               />
             </div>
           </div>
 
-          {/* Phone Number - Auto-populated, Read-only */}
+          {/* Phone Number - Editable based on booking for */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
               Phone Number <span className="text-red-500">*</span>
@@ -255,15 +311,17 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
                 type="tel"
                 required
                 value={appointmentForm.phone}
-                readOnly
-                placeholder="10 digit mobile number"
-                className="block w-full pl-11 pr-4 py-3.5 bg-gray-100 border border-gray-300 rounded-2xl text-gray-700 placeholder-gray-400 cursor-not-allowed text-sm font-medium"
-                title="This field is auto-filled from your profile"
+                onChange={(e) => setAppointmentForm({...appointmentForm, phone: e.target.value.substring(0, 15)})}
+                placeholder="Patient's phone number"
+                className={`block w-full pl-11 pr-4 py-3.5 border rounded-2xl placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-medium ${
+                  appointmentForm.bookingFor === 'self' ? 'bg-gray-100 border-gray-300 text-gray-700 cursor-not-allowed' : 'bg-white border-gray-200 text-gray-800 focus:bg-white'
+                }`}
+                readOnly={appointmentForm.bookingFor === 'self'}
               />
             </div>
           </div>
 
-          {/* Email - Auto-populated if available, otherwise editable */}
+          {/* Email - Editable based on booking for */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
               Email Address {appointmentForm.email ? '' : '(Optional)'}
@@ -276,14 +334,36 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
                 type="email"
                 value={appointmentForm.email || ''}
                 onChange={(e) => setAppointmentForm({...appointmentForm, email: e.target.value})}
-                placeholder="your.email@example.com"
+                placeholder="Patient's email address"
                 className={`block w-full pl-11 pr-4 py-3.5 border rounded-2xl placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-medium ${
-                  userData?.Email ? 'bg-gray-100 border-gray-300 text-gray-700' : 'bg-gray-50 border-gray-200 text-gray-800 focus:bg-white'
+                  appointmentForm.bookingFor === 'self' && userData?.Email ? 'bg-gray-100 border-gray-300 text-gray-700' : 'bg-white border-gray-200 text-gray-800 focus:bg-white'
                 }`}
-                readOnly={!!userData?.Email}
+                readOnly={appointmentForm.bookingFor === 'self' && !!userData?.Email}
               />
             </div>
           </div>
+
+          {/* Relationship Field - Only shown when booking for someone else */}
+          {appointmentForm.bookingFor === 'someone' && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
+                Your Relationship to Patient <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <User className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  required
+                  value={appointmentForm.relationship || ''}
+                  onChange={(e) => setAppointmentForm({...appointmentForm, relationship: e.target.value})}
+                  placeholder="e.g., Father, Mother, Son, Daughter, Spouse, Relative"
+                  className="block w-full pl-11 pr-4 py-3.5 bg-white border border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Select Doctor - Fetched from database */}
           <div className="space-y-1.5">

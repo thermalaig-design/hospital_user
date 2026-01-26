@@ -31,7 +31,13 @@ const HospitalTrusteeApp = () => {
     doctor: '',
     date: '',
     time: '',
-    reason: ''
+    reason: '',
+    // Fields for booking for someone else
+    bookingFor: 'self', // 'self' or 'someone'
+    patientRelationship: '', // Relationship to the patient
+    patientAge: '',
+    patientGender: '',
+    patientEmail: ''
   });
 
   // Reference state
