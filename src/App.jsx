@@ -15,6 +15,8 @@ import CommitteeMembers from './CommitteeMembers';
 import ProtectedRoute from './ProtectedRoute';
 import SponsorDetails from './SponsorDetails';
 import AdminPanel from './admin/AdminPanel';
+import TermsAndConditions from './TermsAndConditions';
+import PrivacyPolicy from './PrivacyPolicy';
 
 const HospitalTrusteeApp = () => {
   const navigate = useNavigate();
@@ -337,11 +339,19 @@ const HospitalTrusteeApp = () => {
             </ProtectedRoute>
           } 
         />
-        <Route 
-          path="/otp-verification" 
-          element={<OTPVerification />} 
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
+          <Route 
+            path="/otp-verification" 
+            element={<OTPVerification />} 
+          />
+          <Route 
+            path="/terms-and-conditions" 
+            element={<TermsAndConditions />} 
+          />
+          <Route 
+            path="/privacy-policy" 
+            element={<PrivacyPolicy />} 
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
   );

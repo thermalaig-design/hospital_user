@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { checkPhoneNumber } from './services/authService';
 
 function Login() {
@@ -98,9 +98,19 @@ function Login() {
           >
             {loading ? 'Verifying...' : 'Continue'}
           </button>
-        </form>
+          </form>
+
+          {/* Footer Links */}
+          <div className="mt-8 pt-6 border-t border-gray-100 flex flex-col items-center space-y-3">
+            <div className="flex items-center space-x-4 text-sm font-medium text-gray-500">
+              <Link to="/terms-and-conditions" className="hover:text-indigo-600 transition-colors">Terms</Link>
+              <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+              <Link to="/privacy-policy" className="hover:text-indigo-600 transition-colors">Privacy</Link>
+            </div>
+            <p className="text-xs text-gray-400">© 2026 Maharaja Agarsen Hospital. All rights reserved.</p>
+          </div>
+        </div>
       </div>
-    </div>
   );
 }
 
