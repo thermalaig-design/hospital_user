@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, Users, Clock, FileText, UserPlus, Bell, ChevronRight, LogOut, Heart, Shield, Plus, ArrowRight, Pill, ShoppingCart, Calendar, Stethoscope, Building2, Phone, QrCode, Monitor, Brain, Package, FileCheck, Search, Filter, MapPin, Star, HelpCircle, BookOpen, Video, Headphones, Menu, X, Home as HomeIcon, Settings, UserCircle, Image } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import TermsModal from './components/TermsModal';
+import ImageSlider from './components/ImageSlider';
 import { getProfile, getMarqueeUpdates, getSponsors, getUserNotifications, markNotificationAsRead, markAllNotificationsAsRead } from './services/api';
 
 
@@ -24,6 +25,16 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
     'Emergency Services Available 24/7',
   ]);
   const [sponsor, setSponsor] = useState(null);
+
+  // Gallery images data
+  const galleryImages = [
+    { id: 1, url: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=800', title: 'Modern Hospital Building' },
+    { id: 2, url: 'https://images.unsplash.com/photo-1586773860418-d319a39855df?auto=format&fit=crop&q=80&w=800', title: 'Advanced Laboratory' },
+    { id: 3, url: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&q=80&w=800', title: 'Patient Care Unit' },
+    { id: 4, url: 'https://images.unsplash.com/photo-1551076805-e1869033e561?auto=format&fit=crop&q=80&w=800', title: 'Medical Research Center' },
+    { id: 5, url: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&q=80&w=800', title: 'Diagnostics Center' },
+    { id: 6, url: 'https://images.unsplash.com/photo-1504813184591-01592fd03cf7?auto=format&fit=crop&q=80&w=800', title: 'Modern Medical Equipment' },
+  ];
 
   useEffect(() => {
     // Load profile from Supabase first, then fallback to localStorage
@@ -221,7 +232,6 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
       { id: 'directory', title: 'Directory', desc: 'Find Doctors & Hospitals', icon: Users, color: 'bg-blue-100', iconColor: 'text-blue-600', screen: 'directory' },
       { id: 'appointment', title: 'Book Appointment', desc: 'Schedule Doctor Visit', icon: Clock, color: 'bg-indigo-100', iconColor: 'text-indigo-600', screen: 'appointment', memberOnly: true },
       { id: 'reports', title: 'Reports', desc: 'Medical Test Results', icon: FileText, color: 'bg-orange-100', iconColor: 'text-orange-600', screen: 'reports' },
-      { id: 'gallery', title: 'Gallery', desc: 'Hospital Photo Gallery', icon: Image, color: 'bg-purple-100', iconColor: 'text-purple-600', screen: 'gallery' },
       { id: 'reference', title: 'Patient Referral', desc: 'Refer Patient to Doctor', icon: UserPlus, color: 'bg-teal-100', iconColor: 'text-teal-600', screen: 'reference' },
     ];
 
@@ -455,6 +465,21 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
           </div>
         </div>
 
+        {/* Gallery Slider Section */}
+        <div className="px-4 sm:px-6 mt-6 sm:mt-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base sm:text-lg font-bold text-gray-900">Gallery</h2>
+            <button 
+              onClick={() => onNavigate('gallery')}
+              className="text-indigo-600 text-xs sm:text-sm font-semibold hover:text-indigo-700 flex items-center gap-1"
+            >
+              View All <ChevronRight className="h-3 w-3" />
+            </button>
+          </div>
+          <div className="w-full">
+            <ImageSlider images={galleryImages} onNavigate={onNavigate} />
+          </div>
+        </div>
 
         {/* Sponsored By Banner - Moved after quick actions */}
         <div className="banner-container w-full mt-5 mb-0 " style={{ marginTop: '3rem' }}>  {/* Added padding for consistency */}

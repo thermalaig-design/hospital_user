@@ -29,9 +29,9 @@ export function Gallery({ onNavigateBack }) {
 
       {/* Content */}
       <div className="p-4 sm:p-6">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {images.map((image) => (
-            <div key={image.id} className="group relative bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300">
+            <div key={image.id} className="group relative bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
               <div className="aspect-[4/3] overflow-hidden">
                 <img
                   src={image.url}
@@ -40,7 +40,7 @@ export function Gallery({ onNavigateBack }) {
                 />
               </div>
               <div className="p-3 bg-white">
-                <p className="text-xs font-semibold text-gray-800 truncate">{image.title}</p>
+                <p className="text-sm font-semibold text-gray-800">{image.title}</p>
               </div>
             </div>
           ))}
