@@ -466,17 +466,27 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
         </div>
 
         {/* Gallery Slider Section */}
-        <div className="px-4 sm:px-6 mt-6 sm:mt-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base sm:text-lg font-bold text-gray-900">Gallery</h2>
+        <div className="px-4 sm:px-6 mt-10 sm:mt-12 mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-8 h-1 bg-indigo-600 rounded-full"></div>
+                <span className="text-indigo-600 text-xs font-bold uppercase tracking-wider">Visual Tour</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">Hospital Gallery</h2>
+            </div>
             <button 
               onClick={() => onNavigate('gallery')}
-              className="text-indigo-600 text-xs sm:text-sm font-semibold hover:text-indigo-700 flex items-center gap-1"
+              className="inline-flex items-center justify-center px-5 py-2.5 rounded-2xl bg-gray-100 text-gray-700 text-sm font-bold hover:bg-indigo-600 hover:text-white transition-all group"
             >
-              View All <ChevronRight className="h-3 w-3" />
+              Explore All <ChevronRight className="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
-          <div className="w-full">
+          <div className="w-full relative">
+            {/* Decorative background elements */}
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-indigo-100 rounded-full blur-3xl opacity-50 -z-10"></div>
+            <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-purple-100 rounded-full blur-3xl opacity-50 -z-10"></div>
+            
             <ImageSlider images={galleryImages} onNavigate={onNavigate} />
           </div>
         </div>
