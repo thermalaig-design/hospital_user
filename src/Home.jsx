@@ -471,9 +471,9 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-8 h-1 bg-indigo-600 rounded-full"></div>
-                <span className="text-indigo-600 text-xs font-bold uppercase tracking-wider">Visual Tour</span>
+                <span className="text-indigo-600 text-[10px] font-bold uppercase tracking-wider">Visual Tour</span>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">Hospital Gallery</h2>
+              <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900 tracking-tight">Hospital Gallery</h2>
             </div>
             <button 
               onClick={() => onNavigate('gallery')}
