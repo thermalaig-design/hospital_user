@@ -9,14 +9,17 @@ import Appointments from './Appointments';
 import Reports from './Reports';
 import Referral from './Referral';
 import Notices from './Notices';
+import Notifications from './Notifications';
 import HealthcareTrusteeDirectory from './HealthcareTrusteeDirectory';
 import MemberDetails from './MemberDetails';
 import CommitteeMembers from './CommitteeMembers';
 import ProtectedRoute from './ProtectedRoute';
 import SponsorDetails from './SponsorDetails';
-import AdminPanel from './admin/AdminPanel';
+import DeveloperDetails from './DeveloperDetails';
+
 import TermsAndConditions from './TermsAndConditions';
 import PrivacyPolicy from './PrivacyPolicy';
+import Gallery from './Gallery';
 
 const HospitalTrusteeApp = () => {
   const navigate = useNavigate();
@@ -39,7 +42,9 @@ const HospitalTrusteeApp = () => {
     patientRelationship: '', // Relationship to the patient
     patientAge: '',
     patientGender: '',
-    patientEmail: ''
+    patientEmail: '',
+    relationship: '',
+    relationshipText: ''
   });
 
   // Reference state
@@ -93,11 +98,14 @@ const HospitalTrusteeApp = () => {
         'reports': '/reports',
         'reference': '/reference',
         'notices': '/notices',
-        'committee-members': '/committee-members',
-        'sponsor-details': '/sponsor-details',
-        'admin': '/admin'
-      };
+          'notifications': '/notifications',
+          'committee-members': '/committee-members',
+          'sponsor-details': '/sponsor-details',
+          'developers': '/developers',
+          'gallery': '/gallery'
+        };
       const route = routeMap[screen] || '/';
+      console.log('Navigating to route:', screen, '->', route);
       navigate(route);
     }
   };
@@ -261,6 +269,14 @@ const HospitalTrusteeApp = () => {
           } 
         />
         <Route 
+          path="/notifications" 
+          element={
+            <ProtectedRoute>
+              <Notifications onNavigate={handleNavigate} />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
           path="/member-details" 
           element={
             <ProtectedRoute>
@@ -325,20 +341,28 @@ const HospitalTrusteeApp = () => {
             </ProtectedRoute>
           } 
         />
-        <Route 
-          path="/admin" 
-          element={
-            <ProtectedRoute>
-              <AdminPanel 
-                onNavigate={handleNavigate}
-                onLogout={() => {
-                  localStorage.removeItem('isLoggedIn');
-                  navigate('/login');
-                }}
-              />
-            </ProtectedRoute>
-          } 
-        />
+          <Route 
+            path="/developers" 
+            element={
+              <ProtectedRoute>
+                <DeveloperDetails 
+                  onNavigateBack={() => window.history.back()}
+                  onNavigate={handleNavigate}
+                />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/gallery" 
+            element={
+              <ProtectedRoute>
+                <Gallery 
+                  onNavigateBack={() => navigate('/')}
+                />
+              </ProtectedRoute>
+            } 
+          />
+
           <Route 
             path="/otp-verification" 
             element={<OTPVerification />} 

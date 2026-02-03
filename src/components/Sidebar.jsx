@@ -1,18 +1,17 @@
 import React from 'react';
-import { Home as HomeIcon, Users, Clock, FileText, UserPlus, Pill, ChevronRight, LogOut, Menu, X, Shield } from 'lucide-react';
+import { Home as HomeIcon, Users, Clock, FileText, UserPlus, ChevronRight, LogOut, Menu, X, Image } from 'lucide-react';
 
 const Sidebar = ({ isOpen, onClose, onNavigate, currentPage }) => {
   if (!isOpen) return null;
 
-  const menuItems = [
-    { id: 'home', label: 'Home', icon: HomeIcon },
-    { id: 'directory', label: 'Directory', icon: Users },
-    { id: 'appointment', label: 'Appointments', icon: Clock },
-    { id: 'reports', label: 'Reports', icon: FileText },
-    { id: 'reference', label: 'Patient Referral', icon: UserPlus },
-    { id: 'medicines-booking', label: 'Medicines', icon: Pill },
-    { id: 'admin', label: 'Admin Panel', icon: Shield },
-  ];
+    const menuItems = [
+      { id: 'home', label: 'Home', icon: HomeIcon },
+      { id: 'directory', label: 'Directory', icon: Users },
+      { id: 'appointment', label: 'Appointments', icon: Clock },
+      { id: 'reports', label: 'Reports', icon: FileText },
+      { id: 'gallery', label: 'Gallery', icon: Image },
+      { id: 'reference', label: 'Patient Referral', icon: UserPlus },
+    ];
 
   return (
     <div className="absolute left-0 top-[57px] w-72 h-[calc(100vh-57px)] bg-white shadow-2xl z-40 border-r border-gray-200 overflow-y-auto">

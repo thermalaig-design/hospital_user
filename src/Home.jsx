@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { User, Users, Clock, FileText, UserPlus, Bell, ChevronRight, LogOut, Heart, Shield, Plus, ArrowRight, Pill, ShoppingCart, Calendar, Stethoscope, Building2, Phone, QrCode, Monitor, Brain, Package, FileCheck, Search, Filter, MapPin, Star, HelpCircle, BookOpen, Video, Headphones, Menu, X, Home as HomeIcon, Settings, UserCircle } from 'lucide-react';
+import { User, Users, Clock, FileText, UserPlus, Bell, ChevronRight, LogOut, Heart, Shield, Plus, ArrowRight, Pill, ShoppingCart, Calendar, Stethoscope, Building2, Phone, QrCode, Monitor, Brain, Package, FileCheck, Search, Filter, MapPin, Star, HelpCircle, BookOpen, Video, Headphones, Menu, X, Home as HomeIcon, Settings, UserCircle, Image } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import TermsModal from './components/TermsModal';
-import { getProfile, getMarqueeUpdates, getSponsors } from './services/api';
+import { getProfile, getMarqueeUpdates, getSponsors, getUserNotifications, markNotificationAsRead, markAllNotificationsAsRead } from './services/api';
 
 
 /* eslint-disable react-refresh/only-export-components */
@@ -10,12 +10,14 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [marqueeUpdates, setMarqueeUpdates] = useState([
     'Free Cardiac Checkup Camp on March 29, 2026',
     'New Specialist Dr. Neha Kapoor Joined',
     '24x7 Emergency Helpline: 1800-XXX-XXXX',
     'Tele Consultation Services Now Available',
-    'Home Delivery of Medicines Available',
     'Free Health Camp at Main Hospital',
     'New MRI Machine Installed',
     'OPD Timings: 9 AM to 5 PM',
@@ -106,6 +108,48 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
     loadSponsor();
   }, []);
 
+  // Fetch notifications
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const response = await getUserNotifications();
+        if (response.success) {
+          setNotifications(response.data || []);
+          setUnreadCount((response.data || []).filter(n => !n.is_read).length);
+        }
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+      }
+    };
+
+    fetchNotifications();
+    // Poll for new notifications every 30 seconds
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleMarkAsRead = async (id) => {
+    try {
+      await markNotificationAsRead(id);
+      setNotifications(prev => 
+        prev.map(n => n.id === id ? { ...n, is_read: true } : n)
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await markAllNotificationsAsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
+  };
+
   useEffect(() => {
     const termsAccepted = localStorage.getItem('terms_accepted');
     if (!termsAccepted) {
@@ -118,17 +162,68 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
     setShowTermsModal(false);
   };
 
+  const formatNotificationTitle = (title, message) => {
+    // If it's an appointment update, format it nicely
+    if (title.includes('Appointment') && message.includes('appointment')) {
+      if (message.includes('date has been changed')) {
+        return '📅 Appointment Rescheduled';
+      } else if (message.includes('remark')) {
+        return '💬 New Message';
+      } else {
+        return '📋 Appointment Updated';
+      }
+    }
+    return title;
+  };
+
+  const formatNotificationMessage = (message) => {
+    // Format appointment update messages to be more user-friendly
+    if (message.includes('appointment') && message.includes('date has been changed')) {
+      // Extract old and new dates
+      const dateMatch = message.match(/date has been changed from ([\d-]+) to ([\d-]+)/i);
+      if (dateMatch) {
+        const oldDate = formatDate(dateMatch[1]);
+        const newDate = formatDate(dateMatch[2]);
+        return `Hi there! Your appointment has been rescheduled from ${oldDate} to ${newDate}.`;
+      }
+    } else if (message.includes('appointment') && message.includes('remark')) {
+      // Extract remark
+      const remarkMatch = message.match(/has a new remark: (.+)/i);
+      if (remarkMatch) {
+        return `Hi there! New message regarding your appointment: "${remarkMatch[1]}".`;
+      } else {
+        return `Hi there! New message regarding your appointment.`;
+      }
+    }
+    return message;
+  };
+
+  const formatDate = (dateStr) => {
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-IN', { 
+        weekday: 'short', 
+        day: 'numeric', 
+        month: 'short', 
+        year: 'numeric'
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
   // const recentNotices = [
   //   { id: 1, title: 'Free Cardiac Checkup', date: 'Dec 29, 2024', tag: 'Health Camp' },
   //   { id: 2, title: 'New Specialist Joined', date: 'Dec 28, 2024', tag: 'Hiring' },
   // ];
 
-  const quickActions = [
-    { id: 'directory', title: 'Directory', desc: 'Find Doctors & Hospitals', icon: Users, color: 'bg-blue-100', iconColor: 'text-blue-600', screen: 'directory' },
-    { id: 'appointment', title: 'Book Appointment', desc: 'Schedule Doctor Visit', icon: Clock, color: 'bg-indigo-100', iconColor: 'text-indigo-600', screen: 'appointment', memberOnly: true },
-    { id: 'reports', title: 'Reports', desc: 'Medical Test Results', icon: FileText, color: 'bg-orange-100', iconColor: 'text-orange-600', screen: 'reports' },
-    { id: 'reference', title: 'Patient Referral', desc: 'Refer Patient to Doctor', icon: UserPlus, color: 'bg-teal-100', iconColor: 'text-teal-600', screen: 'reference' },
-  ];
+    const quickActions = [
+      { id: 'directory', title: 'Directory', desc: 'Find Doctors & Hospitals', icon: Users, color: 'bg-blue-100', iconColor: 'text-blue-600', screen: 'directory' },
+      { id: 'appointment', title: 'Book Appointment', desc: 'Schedule Doctor Visit', icon: Clock, color: 'bg-indigo-100', iconColor: 'text-indigo-600', screen: 'appointment', memberOnly: true },
+      { id: 'reports', title: 'Reports', desc: 'Medical Test Results', icon: FileText, color: 'bg-orange-100', iconColor: 'text-orange-600', screen: 'reports' },
+      { id: 'gallery', title: 'Gallery', desc: 'Hospital Photo Gallery', icon: Image, color: 'bg-purple-100', iconColor: 'text-purple-600', screen: 'gallery' },
+      { id: 'reference', title: 'Patient Referral', desc: 'Refer Patient to Doctor', icon: UserPlus, color: 'bg-teal-100', iconColor: 'text-teal-600', screen: 'reference' },
+    ];
 
   // const enquiry = [
   //   { id: 'specialities', title: 'Availability of Specialities', icon: Stethoscope, color: 'bg-purple-500' },
@@ -159,6 +254,88 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
         </button>
         <h1 className="text-lg font-bold text-gray-800">Home</h1>
         <div className="flex items-center gap-2">
+          {/* Notifications Bell */}
+          <div className="relative">
+            <button 
+              onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+              className="p-2 rounded-xl hover:bg-gray-100 transition-colors relative"
+            >
+              <Bell className="h-6 w-6 text-gray-700" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 bg-red-500 text-white text-[10px] font-bold h-4 w-4 flex items-center justify-center rounded-full border-2 border-white">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {/* Notifications Dropdown */}
+            {isNotificationsOpen && (
+              <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[60] overflow-hidden">
+                <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                  <h3 className="font-bold text-gray-900">Notifications ({notifications.length})</h3>
+                  {unreadCount > 0 && (
+                    <button 
+                      onClick={handleMarkAllAsRead}
+                      className="text-xs text-indigo-600 font-semibold hover:text-indigo-700"
+                    >
+                      Mark all as read
+                    </button>
+                  )}
+                </div>
+                <div className="max-h-[400px] overflow-y-auto">
+                  {notifications.length > 0 ? (
+                    notifications.slice(0, 4).map((notification) => (
+                      <div 
+                        key={notification.id}
+                        onClick={() => {
+                          handleMarkAsRead(notification.id);
+                          // Store the notification in sessionStorage to open it on the notifications page
+                          sessionStorage.setItem('initialNotification', JSON.stringify(notification));
+                          setIsNotificationsOpen(false);
+                          onNavigate('notifications');
+                        }}
+                        className={`p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer relative ${!notification.is_read ? 'bg-indigo-50/30' : ''}`}
+                      >
+                        {!notification.is_read && (
+                          <div className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>
+                        )}
+                        <h4 className={`text-sm font-semibold text-gray-900 mb-0.5 ${!notification.is_read ? 'pr-4' : ''}`}>
+                          {formatNotificationTitle(notification.title, notification.message)}
+                        </h4>
+                        <p className="text-xs text-gray-600 leading-relaxed mb-2">
+                          {formatNotificationMessage(notification.message)}
+                        </p>
+                        <span className="text-[10px] text-gray-400 font-medium">
+                          {new Date(notification.created_at).toLocaleDateString()} at {new Date(notification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-8 text-center">
+                      <div className="bg-gray-100 h-12 w-12 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <Bell className="h-6 w-6 text-gray-400" />
+                      </div>
+                      <p className="text-sm text-gray-500 font-medium">No notifications yet</p>
+                    </div>
+                  )}
+                </div>
+                {notifications.length > 0 && (
+                  <div className="p-3 bg-gray-50 text-center border-t border-gray-100">
+                    <button 
+                      onClick={() => {
+                        setIsNotificationsOpen(false);
+                        onNavigate('notifications');
+                      }}
+                      className="text-xs text-gray-500 font-semibold hover:text-gray-700"
+                    >
+                      View all {notifications.length} notifications
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <button 
             onClick={() => onNavigate('profile')}
             className="p-1 rounded-xl hover:bg-gray-100 transition-colors flex items-center justify-center"
@@ -360,6 +537,21 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
           margin: 0 auto;
           }
         `}</style>
+
+        {/* Footer */}
+        <footer className="mt-auto py-4 px-6 bg-gray-50 border-t border-gray-200">
+          <div className="text-center">
+            <button 
+              onClick={() => {
+                console.log('Navigating to developers page');
+                onNavigate('developers');
+              }}
+              className="text-xs text-gray-500 hover:text-indigo-600 font-medium transition-colors"
+            >
+              Powered by Developers
+            </button>
+          </div>
+        </footer>
 
         {/* Terms & Conditions Modal */}
         <TermsModal 

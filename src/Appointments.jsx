@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { User, Phone, ChevronRight, ChevronLeft, Calendar, Stethoscope, Home as HomeIcon, Mail, AlertCircle, Clock } from 'lucide-react';
+import { User, Phone, ChevronRight, Menu, X, Calendar, Stethoscope, Home as HomeIcon, Mail, AlertCircle, Clock } from 'lucide-react';
 import { getDoctors } from './services/api';
 import { bookAppointment } from './services/appointmentService';
+import Sidebar from './components/Sidebar';
 
 const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
   const [doctors, setDoctors] = useState([]);
@@ -13,6 +14,7 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
   const [bookingFor, setBookingFor] = useState('self'); // State for self/someone toggle
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [dateError, setDateError] = useState('');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Load user data from localStorage on mount
   useEffect(() => {
@@ -30,7 +32,8 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
           phone: (parsedUser['Mobile'] || parsedUser.mobile || '').substring(0, 15), // Limit to 15 characters
           email: parsedUser['Email'] || parsedUser.email || '',
           membershipNumber: parsedUser['Membership number'] || parsedUser.membership_number || '',
-          address: parsedUser['Address Home'] || parsedUser.address || ''
+          address: parsedUser['Address Home'] || parsedUser.address || '',
+          time: '' // Initialize time field
         });
       } catch (error) {
         console.error('Error loading user data:', error);
@@ -94,10 +97,10 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
 
     if (selectedDoctor && appointmentForm.opdType && !availableDays.includes(dayShort) && !availableDays.includes('daily')) {
       setDateError('This date is not available for the selected doctor and OPD type.');
-      setAppointmentForm({...appointmentForm, date: ''});
+      setAppointmentForm({...appointmentForm, date: '', time: ''});
     } else {
       setDateError('');
-      setAppointmentForm({...appointmentForm, date: selectedDateValue});
+      setAppointmentForm({...appointmentForm, date: selectedDateValue, time: ''});
     }
   };
 
@@ -122,7 +125,7 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
       }
       
       if (!appointmentForm.patientName || !appointmentForm.phone || !appointmentForm.doctor || 
-          (hasOpdTypes && !appointmentForm.opdType) || !appointmentForm.date || !appointmentForm.reason) {
+          (hasOpdTypes && !appointmentForm.opdType) || !appointmentForm.date || !appointmentForm.time || !appointmentForm.reason) {
         setError('Please fill in all required fields');
         setSubmitting(false);
         return;
@@ -141,6 +144,7 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
         department: appointmentForm.department,
         opd_type: hasOpdTypes ? appointmentForm.opdType : 'General OPD', // Default to General OPD if no OPD types available
         appointment_date: appointmentForm.date,
+        appointment_time: appointmentForm.time || null,  // Include appointment time
         appointment_type: appointmentForm.appointmentType || 'General Consultation',
         reason: appointmentForm.reason,
         medical_history: appointmentForm.medicalHistory || '',
@@ -148,7 +152,11 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
         user_type: userData?.type || '',
         user_id: userData?.[' S. No.'] || userData?.id || null,
         booking_for: appointmentForm.bookingFor || 'self',
-        patient_relationship: appointmentForm.relationship || null
+        patient_relationship: appointmentForm.bookingFor === 'someone' 
+          ? (appointmentForm.relationship === 'Other' 
+              ? (appointmentForm.relationshipText || 'Other')
+              : (appointmentForm.relationship || 'Other'))
+          : 'Self'
       };
 
       console.log('📤 Submitting appointment:', appointmentData);
@@ -160,9 +168,12 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
       
       setSuccess(true);
       
-      // Show success message
+      // Show success message - This appears as a green banner at the top of the form
+      console.log('✅ Success message displayed as green banner at top of form');
+      
+      // Show alert popup - This appears as a browser alert dialog
       setTimeout(() => {
-        alert('Appointment booked successfully! You will receive a confirmation email shortly.');
+        alert('Appointment booked successfully! You will receive a confirmation message shortly.');
         onNavigate('home');
       }, 1000);
 
@@ -179,10 +190,10 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
       {/* Navbar */}
       <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
         <button
-          onClick={() => onNavigate('home')}
-          className="p-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 transition-colors border border-indigo-200"
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+          className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
         >
-          <ChevronLeft className="h-5 w-5 text-indigo-600" />
+          {isMenuOpen ? <X className="h-6 w-6 text-gray-700" /> : <Menu className="h-6 w-6 text-gray-700" />}
         </button>
         <h1 className="text-lg font-bold text-gray-800">Book Appointment</h1>
         <button
@@ -216,6 +227,7 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
         </div>
       )}
 
+      {/* SUCCESS MESSAGE DISPLAY - Appears as green banner at top of form when appointment is booked */}
       {success && (
         <div className="mx-6 mb-4 p-4 bg-green-50 border-2 border-green-200 rounded-2xl">
           <p className="text-green-800 text-sm font-semibold">✅ Appointment booked successfully!</p>
@@ -223,14 +235,14 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
       )}
 
       {/* Booking For Toggle */}
-      <div className="mb-4">
-        <div className="flex space-x-2 bg-gray-100 p-1 rounded-xl">
+      <div className="mb-6 px-6">
+        <div className="flex bg-gray-100 p-1 rounded-2xl w-fit mx-auto">
           <button
             type="button"
-            className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-colors ${
+            className={`py-3 px-6 rounded-xl text-base font-semibold transition-all duration-300 ${
               appointmentForm.bookingFor === 'self' 
-                ? 'bg-white text-indigo-600 shadow-sm' 
-                : 'text-gray-600 hover:text-gray-800'
+                ? 'bg-white text-indigo-600 shadow-md transform scale-105' 
+                : 'text-gray-600 hover:text-indigo-500 hover:bg-gray-200'
             }`}
             onClick={() => {
               setAppointmentForm({
@@ -241,18 +253,24 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
                 email: userData?.['Email'] || userData?.email || '',
                 age: '',
                 gender: '',
-                relationship: ''
+                time: '',
+                relationship: '',
+                relationshipText: '',
+                patientRelationship: 'Self'
               });
             }}
           >
-            For Self
+            <div className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              For Self
+            </div>
           </button>
           <button
             type="button"
-            className={`flex-1 py-2 px-3 rounded-xl text-sm font-medium transition-colors ${
+            className={`py-3 px-6 rounded-xl text-base font-semibold transition-all duration-300 ${
               appointmentForm.bookingFor === 'someone' 
-                ? 'bg-white text-indigo-600 shadow-sm' 
-                : 'text-gray-600 hover:text-gray-800'
+                ? 'bg-white text-indigo-600 shadow-md transform scale-105' 
+                : 'text-gray-600 hover:text-indigo-500 hover:bg-gray-200'
             }`}
             onClick={() => {
               setAppointmentForm({
@@ -263,18 +281,31 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
                 email: '',
                 age: '',
                 gender: '',
-                relationship: ''
+                time: '',
+                relationship: '',
+                relationshipText: '',
+                patientRelationship: ''
               });
             }}
           >
-            For Someone Else
+            <div className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              For Someone Else
+            </div>
           </button>
         </div>
       </div>
 
+      <Sidebar
+        isOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+        onNavigate={onNavigate}
+        currentPage="appointment"
+      />
+
       {/* Appointment Form */}
-      <div className="px-6 py-4">
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="px-4 py-2">
+        <form onSubmit={handleSubmit} className="space-y-6 max-w-md mx-auto px-2">
           {/* Patient Name - Editable based on booking for */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
@@ -353,14 +384,64 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <User className="h-5 w-5 text-gray-400" />
                 </div>
-                <input
-                  type="text"
-                  required
-                  value={appointmentForm.relationship || ''}
-                  onChange={(e) => setAppointmentForm({...appointmentForm, relationship: e.target.value})}
-                  placeholder="e.g., Father, Mother, Son, Daughter, Spouse, Relative"
-                  className="block w-full pl-11 pr-4 py-3.5 bg-white border border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium"
-                />
+                {appointmentForm.relationship === 'Other' ? (
+                  <>
+                    <input
+                      type="text"
+                      required
+                      value={appointmentForm.relationshipText || ''}
+                      onChange={(e) => setAppointmentForm({...appointmentForm, relationshipText: e.target.value})}
+                      placeholder="Specify your relationship"
+                      className="block w-full pl-11 pr-4 py-3.5 bg-white border border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const selectedRelationship = appointmentForm.relationshipText || 'Other';
+                        setAppointmentForm({...appointmentForm, relationship: selectedRelationship, relationshipText: ''});
+                      }}
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                    >
+                      Use
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <select
+                      required
+                      value={appointmentForm.relationship || ''}
+                      onChange={(e) => {
+                        if (e.target.value === 'Other') {
+                          setAppointmentForm({...appointmentForm, relationship: 'Other', relationshipText: ''});
+                        } else {
+                          setAppointmentForm({...appointmentForm, relationship: e.target.value});
+                        }
+                      }}
+                      className="block w-full pl-11 pr-10 py-3.5 bg-white border border-gray-200 rounded-2xl text-gray-800 appearance-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium"
+                    >
+                      <option value="">Select relationship</option>
+                      <option value="Father">Father</option>
+                      <option value="Mother">Mother</option>
+                      <option value="Son">Son</option>
+                      <option value="Daughter">Daughter</option>
+                      <option value="Spouse">Spouse</option>
+                      <option value="Brother">Brother</option>
+                      <option value="Sister">Sister</option>
+                      <option value="Grandfather">Grandfather</option>
+                      <option value="Grandmother">Grandmother</option>
+                      <option value="Uncle">Uncle</option>
+                      <option value="Aunt">Aunt</option>
+                      <option value="Cousin">Cousin</option>
+                      <option value="Relative">Relative</option>
+                      <option value="Friend">Friend</option>
+                      <option value="Guardian">Guardian</option>
+                      <option value="Other">Other</option>
+                    </select>
+                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                      <ChevronRight className="h-5 w-5 text-gray-400 rotate-90" />
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -541,6 +622,25 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
             )}
           </div>
 
+          {/* Time */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
+              Time <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <Clock className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="time"
+                required
+                value={appointmentForm.time || ''}
+                onChange={(e) => setAppointmentForm({...appointmentForm, time: e.target.value})}
+                className="block w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium"
+              />
+            </div>
+          </div>
+
           {/* Age */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Age</label>
@@ -648,6 +748,21 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
           </button>
         </form>
       </div>
+
+      {/* Footer */}
+      <footer className="mt-auto py-4 px-6 bg-gray-50 border-t border-gray-200">
+        <div className="text-center">
+          <button 
+            onClick={() => {
+              console.log('Navigating to developers page from appointments');
+              onNavigate('developers');
+            }}
+            className="text-xs text-gray-500 hover:text-indigo-600 font-medium transition-colors"
+          >
+            Powered by Developers
+          </button>
+        </div>
+      </footer>
     </div>
   );
 };

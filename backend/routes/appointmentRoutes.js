@@ -30,6 +30,9 @@ router.put('/:id/cancel', appointmentController.cancelAppointment);
 // Delete appointment
 router.delete('/:id', appointmentController.deleteAppointment);
 
+// Update appointment details
+router.put('/:id', appointmentController.updateAppointment);
+
 // Approve and reject routes removed as per requirement
 
 console.log('✅ All appointment routes registered');

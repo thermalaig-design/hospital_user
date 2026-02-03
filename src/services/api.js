@@ -320,6 +320,72 @@ export const getUserReports = async () => {
   }
 };
 
+// Get user notifications
+export const getUserNotifications = async () => {
+  try {
+    const user = localStorage.getItem('user');
+    const userId = user ? JSON.parse(user).Mobile || JSON.parse(user).mobile || JSON.parse(user).id : null;
+    
+    if (!userId) {
+      throw new Error('No user found in localStorage');
+    }
+    
+    const response = await api.get('/notifications', {
+      headers: {
+        'user-id': userId
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    throw error;
+  }
+};
+
+// Mark notification as read
+export const markNotificationAsRead = async (id) => {
+  try {
+    const user = localStorage.getItem('user');
+    const userId = user ? JSON.parse(user).Mobile || JSON.parse(user).mobile || JSON.parse(user).id : null;
+    
+    if (!userId) {
+      throw new Error('No user found in localStorage');
+    }
+    
+    const response = await api.patch(`/notifications/${id}/read`, {}, {
+      headers: {
+        'user-id': userId
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    throw error;
+  }
+};
+
+// Mark all notifications as read
+export const markAllNotificationsAsRead = async () => {
+  try {
+    const user = localStorage.getItem('user');
+    const userId = user ? JSON.parse(user).Mobile || JSON.parse(user).mobile || JSON.parse(user).id : null;
+    
+    if (!userId) {
+      throw new Error('No user found in localStorage');
+    }
+    
+    const response = await api.patch('/notifications/read-all', {}, {
+      headers: {
+        'user-id': userId
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error marking all notifications as read:', error);
+    throw error;
+  }
+};
+
 // Upload user report
 export const uploadUserReport = async (reportData, reportFile) => {
   try {

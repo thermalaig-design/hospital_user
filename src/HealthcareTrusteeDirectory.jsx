@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { User, Users, Stethoscope, Building2, Star, Award, ChevronRight, ChevronLeft, Menu, X, Home as HomeIcon, Clock, FileText, UserPlus, Pill, Phone, Mail, MapPin, Search, Filter, ArrowLeft, ArrowRight } from 'lucide-react';
+import { User, Users, Stethoscope, Building2, Star, Award, ChevronRight, ChevronLeft, Menu, X, Home as HomeIcon, Clock, FileText, UserPlus, Phone, Mail, MapPin, Search, Filter, ArrowLeft, ArrowRight } from 'lucide-react';
 import { getAllMembers, getAllCommitteeMembers, getAllHospitals, getAllElectedMembers, getProfilePhotos } from './services/api';
 
 const CACHE_KEY_HTD = 'healthcare_trustee_directory_cache';
@@ -536,13 +536,7 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
               <UserPlus className="h-5 w-5 text-gray-600" />
               <span className="font-medium text-gray-700">Referral</span>
             </button>
-            <button 
-              onClick={() => { onNavigate('medicines-booking'); setIsMenuOpen(false); }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-100 transition-colors text-left"
-            >
-              <Pill className="h-5 w-5 text-gray-600" />
-              <span className="font-medium text-gray-700">Medicines</span>
-            </button>
+
           </div>
         </div>
       )}

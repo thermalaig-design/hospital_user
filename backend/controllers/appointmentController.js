@@ -57,6 +57,7 @@ export const bookAppointment = async (req, res, next) => {
           doctor_name,
           department: department || null,
           appointment_date,
+          appointment_time: req.body.appointment_time || null,  // Add appointment time if provided
           appointment_type: appointment_type || 'General Consultation',
           reason,
           medical_history: medical_history || null,
@@ -308,7 +309,84 @@ export const deleteAppointment = async (req, res, next) => {
     console.error('❌ Error deleting appointment:', error);
     next(error);
   }
+}
+
+/**
+ * Update appointment details
+ */
+export const updateAppointment = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { 
+      patient_name,
+      patient_phone,
+      patient_email,
+      patient_age,
+      patient_gender,
+      membership_number,
+      doctor_id,
+      doctor_name,
+      department,
+      appointment_date,
+      appointment_time,  // Add appointment_time
+      appointment_type,
+      reason,
+      medical_history,
+      address,
+      status,
+      booking_for,
+      patient_relationship,
+      remark
+    } = req.body;
+
+    const updateData = {};
+    
+    // Only add fields that are provided in the request
+    if (patient_name !== undefined) updateData.patient_name = patient_name;
+    if (patient_phone !== undefined) updateData.patient_phone = patient_phone;
+    if (patient_email !== undefined) updateData.patient_email = patient_email;
+    if (patient_age !== undefined) updateData.patient_age = patient_age;
+    if (patient_gender !== undefined) updateData.patient_gender = patient_gender;
+    if (membership_number !== undefined) updateData.membership_number = membership_number;
+    if (doctor_id !== undefined) updateData.doctor_id = doctor_id;
+    if (doctor_name !== undefined) updateData.doctor_name = doctor_name;
+    if (department !== undefined) updateData.department = department;
+    if (appointment_date !== undefined) updateData.appointment_date = appointment_date;
+    if (appointment_time !== undefined) updateData.appointment_time = appointment_time;
+    if (appointment_type !== undefined) updateData.appointment_type = appointment_type;
+    if (reason !== undefined) updateData.reason = reason;
+    if (medical_history !== undefined) updateData.medical_history = medical_history;
+    if (address !== undefined) updateData.address = address;
+    if (status !== undefined) updateData.status = status;
+    if (booking_for !== undefined) updateData.booking_for = booking_for;
+    if (patient_relationship !== undefined) updateData.patient_relationship = patient_relationship;
+    if (remark !== undefined) updateData.remark = remark;
+    
+    // Always update the updated_at timestamp
+    updateData.updated_at = new Date().toISOString();
+
+    const { data: appointment, error } = await supabase
+      .from('appointments')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.status(200).json({
+      success: true,
+      message: 'Appointment updated successfully',
+      data: appointment
+    });
+
+  } catch (error) {
+    console.error('❌ Error updating appointment:', error);
+    next(error);
+  }
 };
+
+// Approve and reject functions removed as per requirement;
 
 /**
  * Generate time slots from time range string for a specific day
