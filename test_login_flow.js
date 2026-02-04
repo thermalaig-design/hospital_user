@@ -1,7 +1,7 @@
 // Test script to verify the login flow
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5001/api/auth';
+const API_URL = 'http://localhost:5002/api/auth';
 
 async function testLoginFlow() {
   try {

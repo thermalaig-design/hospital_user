@@ -1,11 +1,14 @@
 import { supabase } from '../config/supabase.js';
 import axios from 'axios';
 import process from 'process';
+import { initializeFast2SMSService, verifyOTP as verifyFast2SMSOTP } from './fast2smsService.js';
 
-// MSG91 Configuration
+// Service Configuration
 const MSG91_AUTH_KEY = process.env.MSG91_AUTH_KEY;
 const MSG91_TEMPLATE_ID = process.env.MSG91_TEMPLATE_ID;
 const MSG91_SENDER_ID = process.env.MSG91_SENDER_ID || 'MAHLTH';
+const FAST2SMS_API_KEY = process.env.FAST2SMS_API_KEY;
+const OTP_SERVICE_PREFERENCE = process.env.OTP_SERVICE_PREFERENCE || 'fast2sms'; // 'fast2sms' or 'msg91'
 const OTP_EXPIRY_MINUTES = parseInt(process.env.OTP_EXPIRY_MINUTES) || 5;
 const NODE_ENV = process.env.NODE_ENV || 'production';
 
@@ -498,8 +501,20 @@ export const initializePhoneAuth = async (phoneNumber) => {
     // Store OTP locally as backup
     storeOTP(phoneNumber, otp);
     
-    // Send OTP via MSG91
-    const sendResult = await sendOTP(formattedPhone, otp);
+    // Send OTP via Fast2SMS only
+    let sendResult;
+    
+    if (FAST2SMS_API_KEY) {
+      try {
+        console.log('🔄 Using Fast2SMS as OTP service');
+        sendResult = await initializeFast2SMSService(cleanPhone);
+      } catch (fast2smsError) {
+        console.error('❌ Fast2SMS failed:', fast2smsError.message);
+        throw new Error('Failed to send OTP via Fast2SMS. Please complete website verification in your Fast2SMS account.');
+      }
+    } else {
+      throw new Error('Fast2SMS API key not configured. Please add FAST2SMS_API_KEY to your environment variables.');
+    }
     
     if (!sendResult.success) {
       throw new Error('Failed to send OTP');
@@ -539,16 +554,20 @@ export const verifyOTP = async (phoneNumber, otp) => {
       };
     }
     
-    // First try MSG91 verification
-    const msg91Result = await verifyOTPWithMSG91(phoneNumber, otp);
-    
-    if (msg91Result.success) {
-      return msg91Result;
+    // Verify OTP via Fast2SMS only
+    if (FAST2SMS_API_KEY) {
+      const fast2smsResult = verifyFast2SMSOTP(phoneNumber, otp);
+      if (fast2smsResult.success) {
+        return fast2smsResult;
+      } else {
+        console.log('⚠️ Fast2SMS verification failed:', fast2smsResult.message);
+        // Try local verification as fallback
+        console.log('⚠️ Fast2SMS verification failed, trying local verification');
+        return verifyOTPLocal(phoneNumber, otp);
+      }
+    } else {
+      throw new Error('Fast2SMS API key not configured for verification');
     }
-    
-    // Fallback to local verification
-    console.log('⚠️ MSG91 verification failed, trying local verification');
-    return verifyOTPLocal(phoneNumber, otp);
     
   } catch (error) {
     console.error('❌ Error verifying OTP:', error);

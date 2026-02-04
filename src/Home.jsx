@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import TermsModal from './components/TermsModal';
 import ImageSlider from './components/ImageSlider';
 import { getProfile, getMarqueeUpdates, getSponsors, getUserNotifications, markNotificationAsRead, markAllNotificationsAsRead } from './services/api';
+import { fetchLatestGalleryImages } from './services/galleryService';
 
 
 /* eslint-disable react-refresh/only-export-components */
@@ -25,16 +26,9 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
     'Emergency Services Available 24/7',
   ]);
   const [sponsor, setSponsor] = useState(null);
-
-  // Gallery images data
-  const galleryImages = [
-    { id: 1, url: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=800', title: 'Modern Hospital Building' },
-    { id: 2, url: 'https://images.unsplash.com/photo-1586773860418-d319a39855df?auto=format&fit=crop&q=80&w=800', title: 'Advanced Laboratory' },
-    { id: 3, url: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&q=80&w=800', title: 'Patient Care Unit' },
-    { id: 4, url: 'https://images.unsplash.com/photo-1551076805-e1869033e561?auto=format&fit=crop&q=80&w=800', title: 'Medical Research Center' },
-    { id: 5, url: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&q=80&w=800', title: 'Diagnostics Center' },
-    { id: 6, url: 'https://images.unsplash.com/photo-1504813184591-01592fd03cf7?auto=format&fit=crop&q=80&w=800', title: 'Modern Medical Equipment' },
-  ];
+  const [galleryImages, setGalleryImages] = useState([]);
+  const [isGalleryLoading, setIsGalleryLoading] = useState(true);
+  const [galleryError, setGalleryError] = useState(null);
 
   useEffect(() => {
     // Load profile from Supabase first, then fallback to localStorage
@@ -117,6 +111,26 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
     };
 
     loadSponsor();
+  }, []);
+
+  // Load gallery images from Supabase storage table
+  useEffect(() => {
+    const loadGallery = async () => {
+      try {
+        setIsGalleryLoading(true);
+        setGalleryError(null);
+        const images = await fetchLatestGalleryImages(6);
+        setGalleryImages(images);
+      } catch (err) {
+        console.error('Error loading gallery images:', err);
+        setGalleryError('Could not load gallery photos');
+        setGalleryImages([]);
+      } finally {
+        setIsGalleryLoading(false);
+      }
+    };
+
+    loadGallery();
   }, []);
 
   // Fetch notifications
@@ -487,7 +501,20 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
             <div className="absolute -top-10 -right-10 w-40 h-40 bg-indigo-100 rounded-full blur-3xl opacity-50 -z-10"></div>
             <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-purple-100 rounded-full blur-3xl opacity-50 -z-10"></div>
             
-            <ImageSlider images={galleryImages} onNavigate={onNavigate} />
+            {isGalleryLoading ? (
+              <div className="w-full h-[190px] sm:h-[230px] rounded-2xl border-2 border-white bg-gray-100 animate-pulse" />
+            ) : galleryImages.length > 0 ? (
+              <ImageSlider images={galleryImages} onNavigate={onNavigate} />
+            ) : (
+              <button
+                onClick={() => onNavigate('gallery')}
+                className="w-full h-[190px] sm:h-[230px] rounded-2xl border-2 border-dashed border-gray-300 bg-white flex flex-col items-center justify-center text-gray-600 hover:border-indigo-300 hover:text-indigo-700 transition-colors"
+              >
+                <Image className="h-8 w-8 mb-2" />
+                <div className="text-sm font-bold">No gallery photos yet</div>
+                <div className="text-xs mt-0.5">{galleryError || 'Tap to open gallery'}</div>
+              </button>
+            )}
           </div>
         </div>
 

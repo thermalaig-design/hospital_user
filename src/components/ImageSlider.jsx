@@ -45,7 +45,7 @@ const ImageSlider = ({ images, onNavigate }) => {
   }, [isAutoPlaying, goToNext]);
 
   return (
-    <div className="relative w-full h-[140px] sm:h-[180px] overflow-hidden rounded-2xl shadow-xl group border-2 border-white">
+    <div className="relative w-full h-[190px] sm:h-[230px] overflow-hidden rounded-2xl shadow-xl group border-2 border-white">
       {/* Background Glow Effect */}
       <div className="absolute inset-0 bg-indigo-600/10 blur-3xl -z-10 animate-pulse"></div>
 
