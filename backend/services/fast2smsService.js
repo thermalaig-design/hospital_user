@@ -63,7 +63,7 @@ export const sendOTP = async (phoneNumber, otp) => {
       sender_id: FAST2SMS_SENDER_ID || 'TEIPVT',
       entity_id: FAST2SMS_ENTITY_ID,
       message: FAST2SMS_MESSAGE_ID,
-      variables_values: `_${otp}_|${OTP_EXPIRY_MINUTES}|`, // Adding underscores around OTP as requested
+      variables_values: `${otp}|${OTP_EXPIRY_MINUTES}|`, // OTP without underscores
       flash: 0,
       numbers: formattedPhone
     };

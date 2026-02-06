@@ -1,10 +1,10 @@
 import axios from 'axios';
 
 
-// Use localhost for development, production URL for deployed app
+// Use live backend URL for both development and production
 const API_BASE_URL = import.meta.env.DEV 
-  ? 'http://localhost:5002/api'
-  : 'http://localhost:5002/api';
+  ? 'https://mah.contractmitra.in/api'
+  : 'https://mah.contractmitra.in/api';
 
 // Create axios instance
 export const api = axios.create({

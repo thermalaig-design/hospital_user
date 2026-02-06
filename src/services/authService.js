@@ -1,7 +1,8 @@
 // authService.js - Frontend API calls
+// Point to live backend (same for dev and prod)
 const API_URL = import.meta.env.DEV 
-  ? 'http://localhost:5002/api/auth' 
-  : 'http://localhost:5002/api/auth';
+  ? 'https://mah.contractmitra.in/api/auth' 
+  : 'https://mah.contractmitra.in/api/auth';
 
 
 /**
