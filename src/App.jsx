@@ -3,6 +3,7 @@ import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-
 import Login from './Login';
 import Home from './Home';
 import OTPVerification from './OTPVerification';
+import SpecialOTPVerification from './SpecialOTPVerification';
 import Directory from './Directory';
 import Profile from './Profile';
 import Appointments from './Appointments';
@@ -366,6 +367,10 @@ const HospitalTrusteeApp = () => {
           <Route 
             path="/otp-verification" 
             element={<OTPVerification />} 
+          />
+          <Route 
+            path="/special-otp-verification" 
+            element={<SpecialOTPVerification />} 
           />
           <Route 
             path="/terms-and-conditions" 

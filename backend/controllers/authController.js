@@ -1,4 +1,62 @@
-import { initializePhoneAuth, verifyOTP } from '../services/otpService.js';
+import { initializePhoneAuth, verifyOTP, checkPhoneExists } from '../services/otpService.js';
+
+/**
+ * Special login for phone number 9911334455 - bypass OTP
+ */
+export const specialLogin = async (req, res, next) => {
+  try {
+    const { phoneNumber, passcode } = req.body;
+    
+    // Validate input
+    if (!phoneNumber || !passcode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number and passcode are required'
+      });
+    }
+    
+    // Check if it's the special phone number
+    if (phoneNumber !== '9911334455') {
+      return res.status(403).json({
+        success: false,
+        message: 'This endpoint is only for special phone number 9911334455'
+      });
+    }
+    
+    // Check if passcode is correct
+    if (passcode !== '123456') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid passcode'
+      });
+    }
+    
+    console.log(`🔧 Special login attempt for ${phoneNumber} with passcode ${passcode}`);
+    
+    // Check if phone exists in database
+    const phoneCheck = await checkPhoneExists(phoneNumber);
+    
+    if (!phoneCheck.exists) {
+      return res.status(404).json({
+        success: false,
+        message: 'Phone number not registered in the system'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      message: 'Special login successful',
+      data: {
+        user: phoneCheck.user,
+        phoneNumber: phoneNumber
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error in specialLogin:', error);
+    next(error);
+  }
+};
 
 /**
  * Check phone and send OTP

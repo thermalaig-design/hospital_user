@@ -1,7 +1,7 @@
 // authService.js - Frontend API calls
-// Point to live backend (same for dev and prod)
+// Point to local backend for testing
 const API_URL = import.meta.env.DEV 
-  ? 'https://mah.contractmitra.in/api/auth' 
+  ? 'http://localhost:5002/api/auth' 
   : 'https://mah.contractmitra.in/api/auth';
 
 
@@ -46,6 +46,30 @@ export const verifyOTP = async (phoneNumber, otp) => {
     return data;
   } catch (error) {
     console.error('Error verifying OTP:', error);
+    throw error;
+  }
+};
+
+/**
+ * Special login for phone number 9911334455
+ */
+export const specialLogin = async (phoneNumber, passcode) => {
+  try {
+    const response = await fetch(`${API_URL}/special-login`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json' 
+      },
+      body: JSON.stringify({ 
+        phoneNumber, 
+        passcode 
+      })
+    });
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error in special login:', error);
     throw error;
   }
 };

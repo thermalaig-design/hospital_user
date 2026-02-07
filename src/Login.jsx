@@ -16,7 +16,31 @@ function Login() {
     try {
       console.log('🔍 Checking phone number:', phoneNumber);
       
-      // Check if phone exists in backend
+      // 🔧 SPECIAL CASE: Bypass OTP for phone number 9911334455
+      if (phoneNumber === '9911334455') {
+        console.log('🔧 Special login detected for 9911334455 - redirecting to special verification');
+        
+        // Check if phone exists in backend
+        const checkResult = await checkPhoneNumber(phoneNumber);
+        
+        if (!checkResult.success) {
+          setError(checkResult.message);
+          setLoading(false);
+          return;
+        }
+        
+        // Navigate to special OTP verification screen with user data
+        navigate('/special-otp-verification', {
+          state: {
+            user: checkResult.data.user,
+            phoneNumber: phoneNumber
+          }
+        });
+        setLoading(false);
+        return;
+      }
+      
+      // Check if phone exists in backend (normal flow)
       const checkResult = await checkPhoneNumber(phoneNumber);
       
       console.log('📞 API Response:', checkResult);
