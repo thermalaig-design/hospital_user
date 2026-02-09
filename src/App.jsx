@@ -21,6 +21,7 @@ import DeveloperDetails from './DeveloperDetails';
 import TermsAndConditions from './TermsAndConditions';
 import PrivacyPolicy from './PrivacyPolicy';
 import Gallery from './Gallery';
+import { useAndroidBackHandler } from './hooks/useAndroidBackHandler';
 
 const HospitalTrusteeApp = () => {
   const navigate = useNavigate();
@@ -29,6 +30,9 @@ const HospitalTrusteeApp = () => {
   const [selectedMember, setSelectedMember] = useState(null);
   const [previousScreen, setPreviousScreen] = useState(null);
   const [previousScreenName, setPreviousScreenName] = useState(null);
+
+  // Initialize Android back handler - this will handle all back navigation
+  useAndroidBackHandler();
 
   // Appointment state
   const [appointmentForm, setAppointmentForm] = useState({
@@ -112,28 +116,36 @@ const HospitalTrusteeApp = () => {
   };
 
   // Load member data from sessionStorage on mount if on member-details route
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (location.pathname === '/member-details') {
       const storedMember = sessionStorage.getItem('selectedMember');
       const storedPreviousScreen = sessionStorage.getItem('previousScreen');
       const storedPreviousScreenName = sessionStorage.getItem('previousScreenName');
       
-      if (storedMember && selectedMember === null) { // Only update if not already set
+      if (storedMember) {
         try {
           const parsedMember = JSON.parse(storedMember);
-          setSelectedMember(parsedMember);
+          // Only update if different to prevent infinite loops
+          if (JSON.stringify(selectedMember) !== JSON.stringify(parsedMember)) {
+            setSelectedMember(parsedMember);
+          }
         } catch (e) {
           console.error('Error parsing stored member:', e);
         }
       }
-      if (storedPreviousScreen && previousScreen === null) { // Only update if not already set
-        setPreviousScreen(storedPreviousScreen);
+      if (storedPreviousScreen) {
+        if (previousScreen !== storedPreviousScreen) {
+          setPreviousScreen(storedPreviousScreen);
+        }
       }
-      if (storedPreviousScreenName && previousScreenName === null) { // Only update if not already set
-        setPreviousScreenName(storedPreviousScreenName);
+      if (storedPreviousScreenName) {
+        if (previousScreenName !== storedPreviousScreenName) {
+          setPreviousScreenName(storedPreviousScreenName);
+        }
       }
     }
-  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
 
   // Check if user should be on profile page
@@ -162,9 +174,9 @@ const HospitalTrusteeApp = () => {
   };
 
   return (
-    <div className={`max-w-[430px] mx-auto bg-white shadow-2xl min-h-screen w-full relative ${
+    <div className={`w-full bg-white min-h-screen relative shadow-2xl ${
       (location.pathname === '/login' || location.pathname === '/otp-verification' || location.pathname === '/profile') ? 'overflow-hidden' : 'overflow-y-auto'
-    }`}>
+    } max-w-full md:max-w-[430px] md:mx-auto`}>
       <Routes>
         <Route 
           path="/login" 
