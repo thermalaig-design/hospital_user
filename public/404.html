@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Page Not Found</title>
+    <script type="text/javascript">
+      // Single Page Apps for GitHub Pages
+      // MIT License
+      // https://github.com/rafgraph/spa-github-pages
+      (function(location) {
+        if (location.hostname === "thermalaig-design.github.io") {
+          // Create a new URL object based on the current location
+          var url = new URL(location.href);
+          // Extract the pathname and remove the leading slash and repo name
+          var path = url.pathname.replace(/^\/hospital_user\//, '');
+          
+          // If the path is not empty and not the root, redirect to the root
+          if (path && path !== '/') {
+            // Redirect to the root with the path as a hash fragment
+            url.pathname = '/hospital_user/';
+            url.hash = '#' + path;
+            location.replace(url.toString());
+          }
+        }
+      }(window.location));
+    </script>
+  </head>
+  <body>
+  </body>
+</html>
