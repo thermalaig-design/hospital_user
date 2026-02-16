@@ -839,7 +839,7 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
                     }
                   }}
                 >
-                    <div className="bg-indigo-50 h-16 w-16 rounded-2xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300 overflow-hidden">
+                      <div className="bg-gradient-to-br from-indigo-100 to-purple-100 h-16 w-16 rounded-2xl flex items-center justify-center text-indigo-600 group-hover:from-indigo-600 group-hover:to-purple-600 group-hover:text-white transition-all duration-300 overflow-hidden shadow-sm border border-indigo-200/50 group-hover:border-transparent group-hover:shadow-md">
                       {getMemberPhoto(item) ? (
                         <img 
                           src={getMemberPhoto(item)} 
@@ -877,9 +877,12 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
                               {item['Membership number']}
                             </p>
                           )}
-                          <p className="text-indigo-600 text-[10px] font-bold uppercase tracking-widest bg-indigo-50 px-2 py-0.5 rounded-full inline-block group-hover:bg-indigo-100 transition-colors">
-                            {item.position || item.member_role || item.type || item['Company Name'] || 'N/A'}
-                          </p>
+                    {/* Hide type badge for doctors in healthcare directory */}
+                            {!(selectedDirectory === 'healthcare' && activeTab === 'doctors') && (
+                              <p className="text-indigo-600 text-[10px] font-bold uppercase tracking-widest bg-indigo-50 px-2 py-0.5 rounded-full inline-block group-hover:bg-indigo-100 transition-colors">
+                                {item.position || item.member_role || item.type || item['Company Name'] || 'N/A'}
+                              </p>
+                            )}
                           {item.location && (
                             <p className="text-gray-600 text-xs mt-1 font-medium">
                               📍 {item.location}
