@@ -32,7 +32,7 @@ const DeveloperDetails = ({ onNavigateBack, onNavigate }) => {
   return (
     <div className="bg-white min-h-screen flex flex-col">
       {/* Navbar */}
-      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-5 flex items-center justify-between sticky top-0 z-50 shadow-sm">
         <button
           onClick={onNavigateBack}
           className="p-2 rounded-xl hover:bg-gray-100 transition-colors flex items-center gap-2"

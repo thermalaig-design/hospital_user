@@ -50,8 +50,8 @@ const AdminPanel = ({ onNavigate, onLogout }) => {
   }, []);
 
   return (
-    <div className="bg-white min-h-screen flex flex-col">
-      {/* Navbar */}
+    <div className="bg-white min-h-screen pb-10 relative">
+      {/* Backdrop for notifications */}
       <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -114,10 +114,10 @@ const AdminPanel = ({ onNavigate, onLogout }) => {
       />
 
       {/* Header Section */}
-      <div className="bg-gradient-to-br from-white to-gray-50 px-4 sm:px-6 pt-6 sm:pt-8 pb-6 border-b border-gray-100">
+      <div className="bg-gradient-to-br from-white to-gray-50 px-4 sm:px-6 pt-8 sm:pt-10 pb-6 border-b border-gray-100">
         <div className="flex items-center gap-3 sm:gap-5">
           <div className="bg-white p-3 sm:p-4 rounded-2xl sm:rounded-3xl shadow-lg border-2 border-gray-100 flex-shrink-0">
-            <img src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/render/image/public/document-uploads/image-1767090787454.png?width=8000&height=8000&resize=contain" alt="Logo" className="h-12 w-12 sm:h-16 sm:w-16 object-contain" />
+            <img src={import.meta.env.VITE_LOGO_URL || '/src/assets/logo.png'} alt="Hospital Logo" className="h-12 w-12 sm:h-16 sm:w-16 object-contain" />
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 truncate">Admin Panel</h1>

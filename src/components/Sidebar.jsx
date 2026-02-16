@@ -1,11 +1,50 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Home as HomeIcon, Users, Clock, FileText, UserPlus, ChevronRight, LogOut, Menu, X, Image } from 'lucide-react';
 
-const Sidebar = ({ isOpen, onClose, onNavigate, currentPage }) => {
-  if (!isOpen) return null;
-
+const Sidebar = ({ isOpen, onClose, onNavigate, currentPage, topOffset = 88 }) => {
+  const sidebarRef = useRef(null);
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
   const navigate = useNavigate();
+
+  // Handle swipe gesture to close sidebar
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleTouchStart = (e) => {
+      touchStartX.current = e.touches[0].clientX;
+    };
+
+    const handleTouchMove = (e) => {
+      touchEndX.current = e.touches[0].clientX;
+    };
+
+    const handleTouchEnd = () => {
+      const swipeDistance = touchStartX.current - touchEndX.current;
+      // If swiped left more than 100px, close sidebar
+      if (swipeDistance > 100) {
+        onClose();
+      }
+    };
+
+    const sidebar = sidebarRef.current;
+    if (sidebar) {
+      sidebar.addEventListener('touchstart', handleTouchStart);
+      sidebar.addEventListener('touchmove', handleTouchMove);
+      sidebar.addEventListener('touchend', handleTouchEnd);
+    }
+
+    return () => {
+      if (sidebar) {
+        sidebar.removeEventListener('touchstart', handleTouchStart);
+        sidebar.removeEventListener('touchmove', handleTouchMove);
+        sidebar.removeEventListener('touchend', handleTouchEnd);
+      }
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
 
     const menuItems = [
       { id: 'home', label: 'Home', icon: HomeIcon },
@@ -17,8 +56,15 @@ const Sidebar = ({ isOpen, onClose, onNavigate, currentPage }) => {
     ];
 
   return (
-    <div className="absolute left-0 top-[57px] w-72 h-[calc(100vh-57px)] bg-white shadow-2xl z-40 border-r border-gray-200 overflow-y-auto flex flex-col">
-      <div className="p-6 border-b border-gray-200">
+    <div 
+      ref={sidebarRef}
+      className={`absolute left-0 w-72 bg-white shadow-2xl z-50 border-r border-gray-200 overflow-y-auto flex flex-col`}
+      style={{
+        top: `${topOffset}px`,
+        height: `calc(100vh - ${topOffset}px)`
+      }}
+    >
+      <div className="p-6 pt-8 border-b border-gray-200">
         <div className="flex items-center gap-3 mb-4">
           <div className="bg-white p-2 rounded-xl shadow-sm">
             <img 

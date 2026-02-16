@@ -1,12 +1,46 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Image as ImageIcon, X, ChevronLeft, ChevronRight, Camera } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Image as ImageIcon, X, ChevronLeft, ChevronRight, Camera, Menu, Home as HomeIcon } from 'lucide-react';
 import { fetchAllGalleryImages } from './services/galleryService';
+import Sidebar from './components/Sidebar';
 
-export function Gallery({ onNavigateBack }) {
+export function Gallery({ onNavigate }) {
+  const navigate = useNavigate();
   const [selectedImage, setSelectedImage] = useState(null);
   const [images, setImages] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // Scroll locking when sidebar is open
+  useEffect(() => {
+    if (isMenuOpen) {
+      const scrollY = window.scrollY;
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.touchAction = 'none';
+    } else {
+      const scrollY = parseInt(document.body.style.top || '0') * -1;
+      document.documentElement.style.overflow = 'unset';
+      document.body.style.overflow = 'unset';
+      document.body.style.position = 'unset';
+      document.body.style.width = 'unset';
+      document.body.style.top = 'unset';
+      document.body.style.touchAction = 'auto';
+      window.scrollTo(0, scrollY);
+    }
+    return () => {
+      document.documentElement.style.overflow = 'unset';
+      document.body.style.overflow = 'unset';
+      document.body.style.position = 'unset';
+      document.body.style.width = 'unset';
+      document.body.style.top = 'unset';
+      document.body.style.touchAction = 'auto';
+    };
+  }, [isMenuOpen]);
 
   useEffect(() => {
     const load = async () => {
@@ -51,31 +85,29 @@ export function Gallery({ onNavigateBack }) {
 
   return (
     <div className="bg-gradient-to-b from-gray-50 to-white min-h-screen">
-      {/* Header */}
-      <div className="bg-white/90 backdrop-blur-xl border-b border-gray-100 px-4 sm:px-6 py-4 flex items-center sticky top-0 z-50 shadow-sm">
+      {/* Navbar */}
+      <div className="bg-white border-b border-gray-200 px-6 py-5 flex items-center justify-between sticky top-0 z-50 shadow-sm mt-6">
         <button
-          onClick={onNavigateBack}
-          className="p-2.5 rounded-xl bg-gray-100 text-gray-700 hover:bg-indigo-100 hover:text-indigo-600 transition-all active:scale-95 mr-4"
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+          className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
         >
-          <ArrowLeft className="h-5 w-5" />
+          {isMenuOpen ? <X className="h-6 w-6 text-gray-700" /> : <Menu className="h-6 w-6 text-gray-700" />}
         </button>
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-indigo-100">
-              <Camera className="h-4 w-4 text-indigo-600" />
-            </div>
-            <div className="flex flex-col">
-              <h1 className="text-lg sm:text-xl font-bold text-gray-900">
-                Hospital Photo Gallery
-              </h1>
-              <p className="text-[11px] sm:text-xs text-gray-500 mt-0.5">
-                Exterior, reception, patient rooms, operation theatre & staff moments
-              </p>
-            </div>
-          </div>
-          <p className="text-gray-500 text-xs mt-0.5 text-right">
-            {filteredImages.length} photos
-          </p>
+        <h1 className="text-lg font-bold text-gray-800">Gallery</h1>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-2 rounded-xl hover:bg-gray-100 transition-colors flex items-center justify-center text-indigo-600"
+            title="Back"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <button
+            onClick={() => navigate('/')}
+            className="p-2 rounded-xl hover:bg-gray-100 transition-colors flex items-center justify-center text-indigo-600"
+          >
+            <HomeIcon className="h-5 w-5" />
+          </button>
         </div>
       </div>
 
@@ -150,6 +182,25 @@ export function Gallery({ onNavigateBack }) {
           )}
         </div>
       </div>
+
+      {/* Sidebar Overlay - transparent, content visible behind */}
+      {isMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-transparent z-40"
+          onClick={() => setIsMenuOpen(false)}
+        />
+      )}
+
+      <Sidebar
+        isOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+        onNavigate={(page) => {
+          setIsMenuOpen(false);
+          // Handle navigation if needed
+        }}
+        currentPage="gallery"
+        topOffset={96}
+      />
 
       {/* Lightbox Modal */}
       {selectedImage && (

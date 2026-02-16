@@ -3,8 +3,10 @@ import axios from 'axios';
 
 // Use live backend URL for both development and production
 const API_BASE_URL = import.meta.env.DEV 
+
   ? 'https://mah.contractmitra.in/api'
   : 'https://mah.contractmitra.in/api';
+
 
 // Create axios instance
 export const api = axios.create({

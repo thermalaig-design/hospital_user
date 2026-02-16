@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useBackNavigation } from './hooks';
 import { checkPhoneNumber } from './services/authService';
 
 function Login() {
   const navigate = useNavigate();
+  useBackNavigation(); // Default: uses window.history.back()
   const [phoneNumber, setPhoneNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

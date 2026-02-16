@@ -25,6 +25,36 @@ const Directory = ({ onNavigate }) => {
   const itemsPerPage = 20;
   const loadTabDataRef = useRef(null); // Reference to store the loadTabData function
 
+  // Scroll locking when sidebar is open
+  useEffect(() => {
+    if (isMenuOpen) {
+      const scrollY = window.scrollY;
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.touchAction = 'none';
+    } else {
+      const scrollY = parseInt(document.body.style.top || '0') * -1;
+      document.documentElement.style.overflow = 'unset';
+      document.body.style.overflow = 'unset';
+      document.body.style.position = 'unset';
+      document.body.style.width = 'unset';
+      document.body.style.top = 'unset';
+      document.body.style.touchAction = 'auto';
+      window.scrollTo(0, scrollY);
+    }
+    return () => {
+      document.documentElement.style.overflow = 'unset';
+      document.body.style.overflow = 'unset';
+      document.body.style.position = 'unset';
+      document.body.style.width = 'unset';
+      document.body.style.top = 'unset';
+      document.body.style.touchAction = 'auto';
+    };
+  }, [isMenuOpen]);
+
   // Restore directory tab when coming back from member details
   useEffect(() => {
     const restoreTab = sessionStorage.getItem('restoreDirectoryTab');
@@ -521,7 +551,7 @@ const Directory = ({ onNavigate }) => {
   return (
     <div className="bg-white min-h-screen pb-10 relative" ref={containerRef}>
       {/* Navbar - Matching Home.jsx */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+      <div className="bg-white border-b border-gray-200 px-6 py-5 flex items-center justify-between sticky top-0 z-50 shadow-sm mt-6">
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
@@ -529,12 +559,21 @@ const Directory = ({ onNavigate }) => {
           {isMenuOpen ? <X className="h-6 w-6 text-gray-700" /> : <Menu className="h-6 w-6 text-gray-700" />}
         </button>
         <h1 className="text-lg font-bold text-gray-800">Directory</h1>
-        <button
-          onClick={() => onNavigate('home')}
-          className="p-2 rounded-xl hover:bg-gray-100 transition-colors flex items-center justify-center text-indigo-600"
-        >
-          <HomeIcon className="h-5 w-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onNavigate('home')}
+            className="p-2 rounded-xl hover:bg-gray-100 transition-colors flex items-center justify-center text-indigo-600"
+            title="Back"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <button
+            onClick={() => onNavigate('home')}
+            className="p-2 rounded-xl hover:bg-gray-100 transition-colors flex items-center justify-center text-indigo-600"
+          >
+            <HomeIcon className="h-5 w-5" />
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -556,6 +595,15 @@ const Directory = ({ onNavigate }) => {
 
       {/* No loading indicator - UI shows immediately */}
 
+      {/* Sidebar Overlay */}
+      {isMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-0 z-25 lg:hidden"
+          onClick={() => setIsMenuOpen(false)}
+          style={{ pointerEvents: 'auto' }}
+        ></div>
+      )}
+      
       <Sidebar
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
@@ -567,7 +615,7 @@ const Directory = ({ onNavigate }) => {
       <div className="bg-white px-6 pt-6 pb-4">
         <div className="flex items-center gap-4">
           <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
-            <img src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/render/image/public/document-uploads/image-1767090787454.png?width=8000&height=8000&resize=contain" alt="Logo" className="h-14 w-14 object-contain" />
+            <img src={import.meta.env.VITE_LOGO_URL || '/src/assets/logo.png'} alt="Hospital Logo" className="h-14 w-14 object-contain" />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-800">

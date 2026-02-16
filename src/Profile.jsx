@@ -127,6 +127,36 @@ const Profile = ({ onNavigate, onProfileUpdate }) => {
   const [profilePhotoFile, setProfilePhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
 
+  // Scroll locking when sidebar is open
+  useEffect(() => {
+    if (isMenuOpen) {
+      const scrollY = window.scrollY;
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.touchAction = 'none';
+    } else {
+      const scrollY = parseInt(document.body.style.top || '0') * -1;
+      document.documentElement.style.overflow = 'unset';
+      document.body.style.overflow = 'unset';
+      document.body.style.position = 'unset';
+      document.body.style.width = 'unset';
+      document.body.style.top = 'unset';
+      document.body.style.touchAction = 'auto';
+      window.scrollTo(0, scrollY);
+    }
+    return () => {
+      document.documentElement.style.overflow = 'unset';
+      document.body.style.overflow = 'unset';
+      document.body.style.position = 'unset';
+      document.body.style.width = 'unset';
+      document.body.style.top = 'unset';
+      document.body.style.touchAction = 'auto';
+    };
+  }, [isMenuOpen]);
+
   // Load profile from Supabase on mount
   useEffect(() => {
     loadProfile();
@@ -362,9 +392,9 @@ const Profile = ({ onNavigate, onProfileUpdate }) => {
   }
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-gray-50 via-white to-gray-50 font-sans relative">
+    <div className="min-h-screen pb-10 bg-gradient-to-br from-gray-50 via-white to-gray-50 font-sans relative">
       {/* Sticky Header */}
-      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-5 flex items-center justify-between sticky top-0 z-50 shadow-sm mt-6">
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
@@ -380,6 +410,21 @@ const Profile = ({ onNavigate, onProfileUpdate }) => {
         </button>
       </div>
 
+      {/* Sidebar Overlay */}
+      {isMenuOpen && (
+        <div className="fixed inset-0 z-30 lg:hidden">
+          <div className="fixed inset-0 bg-black bg-opacity-25" onClick={() => setIsMenuOpen(false)}></div>
+          <div className="fixed inset-y-0 left-0 w-64 bg-white shadow-lg">
+            <Sidebar
+              isOpen={isMenuOpen}
+              onClose={() => setIsMenuOpen(false)}
+              onNavigate={onNavigate}
+              currentPage="profile"
+            />
+          </div>
+        </div>
+      )}
+      
       <Sidebar
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}

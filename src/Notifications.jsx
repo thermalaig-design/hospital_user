@@ -11,6 +11,36 @@ const Notifications = ({ onNavigate }) => {
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
+  // Scroll locking when sidebar is open
+  useEffect(() => {
+    if (isMenuOpen) {
+      const scrollY = window.scrollY;
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.touchAction = 'none';
+    } else {
+      const scrollY = parseInt(document.body.style.top || '0') * -1;
+      document.documentElement.style.overflow = 'unset';
+      document.body.style.overflow = 'unset';
+      document.body.style.position = 'unset';
+      document.body.style.width = 'unset';
+      document.body.style.top = 'unset';
+      document.body.style.touchAction = 'auto';
+      window.scrollTo(0, scrollY);
+    }
+    return () => {
+      document.documentElement.style.overflow = 'unset';
+      document.body.style.overflow = 'unset';
+      document.body.style.position = 'unset';
+      document.body.style.width = 'unset';
+      document.body.style.top = 'unset';
+      document.body.style.touchAction = 'auto';
+    };
+  }, [isMenuOpen]);
+
   // Load notifications on component mount
   useEffect(() => {
     fetchNotifications();
@@ -114,18 +144,17 @@ const Notifications = ({ onNavigate }) => {
 
   return (
     <div className="bg-gray-50 min-h-screen pb-10 relative">
-      {/* Sidebar */}
+      {/* Backdrop for sidebar - closes when clicked */}
       {isMenuOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <div className="fixed inset-0 bg-black bg-opacity-25" onClick={() => setIsMenuOpen(false)}></div>
-          <div className="relative z-50 w-64 bg-white h-full shadow-xl">
-            <Sidebar onNavigate={onNavigate} />
-          </div>
-        </div>
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-0 z-25 lg:hidden"
+          onClick={() => setIsMenuOpen(false)}
+          style={{ pointerEvents: 'auto' }}
+        ></div>
       )}
 
       {/* Navbar */}
-      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-5 flex items-center justify-between sticky top-0 z-50 shadow-sm mt-6">
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
@@ -140,6 +169,13 @@ const Notifications = ({ onNavigate }) => {
           <HomeIcon className="h-5 w-5" />
         </button>
       </div>
+
+      <Sidebar
+        isOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+        onNavigate={onNavigate}
+        currentPage="notifications"
+      />
 
       {/* Header Section */}
       <div className="bg-white px-6 pt-6 pb-4">

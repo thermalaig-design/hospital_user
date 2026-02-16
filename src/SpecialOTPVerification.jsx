@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useBackNavigation } from './hooks';
 import { specialLogin } from './services/authService';
 import { fetchDirectoryData } from './services/directoryService';
 
 function SpecialOTPVerification() {
   const navigate = useNavigate();
   const location = useLocation();
+  useBackNavigation(() => navigate('/login')); // Go to login on back
   const [passcode, setPasscode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

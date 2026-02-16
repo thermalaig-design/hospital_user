@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Users, Clock, FileText, UserPlus, Bell, ChevronRight, LogOut, Heart, Shield, Plus, ArrowRight, Pill, ShoppingCart, Calendar, Stethoscope, Building2, Phone, QrCode, Monitor, Brain, Package, FileCheck, Search, Filter, MapPin, Star, HelpCircle, BookOpen, Video, Headphones, Menu, X, Home as HomeIcon, Settings } from 'lucide-react';
+import Sidebar from './components/Sidebar';
 
 const Notices = ({ onNavigate }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -33,10 +34,40 @@ const Notices = ({ onNavigate }) => {
     },
   ];
 
+  // Scroll locking when sidebar is open
+  useEffect(() => {
+    if (isMenuOpen) {
+      const scrollY = window.scrollY;
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.touchAction = 'none';
+    } else {
+      const scrollY = parseInt(document.body.style.top || '0') * -1;
+      document.documentElement.style.overflow = 'unset';
+      document.body.style.overflow = 'unset';
+      document.body.style.position = 'unset';
+      document.body.style.width = 'unset';
+      document.body.style.top = 'unset';
+      document.body.style.touchAction = 'auto';
+      window.scrollTo(0, scrollY);
+    }
+    return () => {
+      document.documentElement.style.overflow = 'unset';
+      document.body.style.overflow = 'unset';
+      document.body.style.position = 'unset';
+      document.body.style.width = 'unset';
+      document.body.style.top = 'unset';
+      document.body.style.touchAction = 'auto';
+    };
+  }, [isMenuOpen]);
+
   return (
     <div className="bg-white min-h-screen pb-10 relative">
       {/* Navbar */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+      <div className="bg-white border-b border-gray-200 px-6 py-5 flex items-center justify-between sticky top-0 z-50 shadow-sm mt-6">
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
@@ -52,42 +83,24 @@ const Notices = ({ onNavigate }) => {
         </button>
       </div>
 
-      {/* Sidebar Menu */}
+      {/* Backdrop for sidebar */}
       {isMenuOpen && (
-        <div className="absolute left-0 top-[57px] w-72 h-[calc(100vh-57px)] bg-white shadow-2xl z-40 border-r border-gray-200 overflow-y-auto">
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="bg-white p-2 rounded-xl shadow-sm">
-                <img src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/render/image/public/document-uploads/image-1767090787454.png?width=8000&height=8000&resize=contain" alt="Logo" className="h-10 w-10 object-contain" />
-              </div>
-              <div>
-                <h2 className="font-bold text-gray-800">Trustee and Patron Portal</h2>
-                <p className="text-xs text-gray-500">Maharaja Agarsen</p>
-              </div>
-            </div>
-          </div>
-          <div className="p-4 space-y-2">
-            <button onClick={() => onNavigate('home')} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-100 transition-colors text-left font-medium text-gray-700">
-              <HomeIcon className="h-5 w-5 text-gray-600" /> Home
-            </button>
-            <button onClick={() => onNavigate('directory')} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-100 transition-colors text-left font-medium text-gray-700">
-              <Users className="h-5 w-5 text-gray-600" /> Directory
-            </button>
-            <button onClick={() => onNavigate('appointment')} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-100 transition-colors text-left font-medium text-gray-700">
-              <Clock className="h-5 w-5 text-gray-600" /> Appointments
-            </button>
-            <button onClick={() => onNavigate('reports')} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-100 transition-colors text-left font-medium text-gray-700">
-              <FileText className="h-5 w-5 text-gray-600" /> Reports
-            </button>
-            <button onClick={() => onNavigate('reference')} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-100 transition-colors text-left font-medium text-gray-700">
-              <UserPlus className="h-5 w-5 text-gray-600" /> Referral
-            </button>
-          </div>
-        </div>
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-0 z-25 lg:hidden"
+          onClick={() => setIsMenuOpen(false)}
+          style={{ pointerEvents: 'auto' }}
+        ></div>
       )}
 
+      <Sidebar
+        isOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+        onNavigate={onNavigate}
+        currentPage="notices"
+      />
+
       {/* Header Section */}
-      <div className="bg-white px-6 pt-6 pb-4">
+      <div className="bg-white px-6 pt-8 pb-4">
         <div className="flex items-center gap-4">
           <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
             <Bell className="h-12 w-12 text-indigo-600" />

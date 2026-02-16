@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { User, Users, Stethoscope, Building2, Star, Award, ChevronRight, ChevronLeft, Menu, X, Home as HomeIcon, Clock, FileText, UserPlus, Phone, Mail, MapPin, Search, Filter, ArrowLeft, ArrowRight } from 'lucide-react';
+import Sidebar from './components/Sidebar';
 import { getAllMembers, getAllCommitteeMembers, getAllHospitals, getAllElectedMembers, getProfilePhotos } from './services/api';
 
 const CACHE_KEY_HTD = 'healthcare_trustee_directory_cache';
@@ -29,6 +30,36 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
   
   // Ref for the content area to scroll to
   const contentRef = useRef(null);
+
+  // Scroll locking when sidebar is open
+  useEffect(() => {
+    if (isMenuOpen) {
+      const scrollY = window.scrollY;
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.touchAction = 'none';
+    } else {
+      const scrollY = parseInt(document.body.style.top || '0') * -1;
+      document.documentElement.style.overflow = 'unset';
+      document.body.style.overflow = 'unset';
+      document.body.style.position = 'unset';
+      document.body.style.width = 'unset';
+      document.body.style.top = 'unset';
+      document.body.style.touchAction = 'auto';
+      window.scrollTo(0, scrollY);
+    }
+    return () => {
+      document.documentElement.style.overflow = 'unset';
+      document.body.style.overflow = 'unset';
+      document.body.style.position = 'unset';
+      document.body.style.width = 'unset';
+      document.body.style.top = 'unset';
+      document.body.style.touchAction = 'auto';
+    };
+  }, [isMenuOpen]);
 
   // Fetch all members, hospitals and member types when component mounts
   const fetchMembers = async (isBackground = false) => {
@@ -434,7 +465,7 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
   return (
     <div className="bg-white min-h-screen pb-10 relative" ref={containerRef}>
       {/* Navbar - Matching Home.jsx */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+      <div className="bg-white border-b border-gray-200 px-6 py-5 flex items-center justify-between sticky top-0 z-50 shadow-sm mt-6">
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
@@ -479,67 +510,21 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
         </div>
       )}
 
-      {/* Sidebar Menu - Inside app layout */}
+      {/* Backdrop for sidebar - closes when clicked */}
       {isMenuOpen && (
-        <div className="absolute left-0 top-[57px] w-72 h-[calc(100vh-57px)] bg-white shadow-2xl z-40 border-r border-gray-200 overflow-y-auto">
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="bg-white p-2 rounded-xl shadow-sm">
-                <img src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/render/image/public/document-uploads/image-1767090787454.png?width=8000&height=8000&resize=contain" alt="Logo" className="h-10 w-10 object-contain" />
-              </div>
-              <div>
-                <h2 className="font-bold text-gray-800">Trustee and Patron Portal</h2>
-                <p className="text-xs text-gray-500">Maharaja Agarsen</p>
-              </div>
-            </div>
-          </div>
-          <div className="p-4 space-y-2">
-            <button 
-              onClick={() => { onNavigate('home'); setIsMenuOpen(false); }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-100 transition-colors text-left"
-            >
-              <HomeIcon className="h-5 w-5 text-gray-600" />
-              <span className="font-medium text-gray-700">Home</span>
-            </button>
-            <button 
-              onClick={() => { onNavigate('directory'); setIsMenuOpen(false); }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-100 transition-colors text-left"
-            >
-              <Users className="h-5 w-5 text-gray-600" />
-              <span className="font-medium text-gray-700">Directory</span>
-            </button>
-            {/* <button 
-              onClick={() => { onNavigate('healthcare-trustee-directory'); setIsMenuOpen(false); }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-indigo-50 text-indigo-600 transition-colors text-left"
-            >
-              <Building2 className="h-5 w-5 text-indigo-600" />
-              <span className="font-medium">Healthcare & Trustee Directory</span>
-            </button> */}
-            <button 
-              onClick={() => { onNavigate('appointment'); setIsMenuOpen(false); }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-100 transition-colors text-left"
-            >
-              <Clock className="h-5 w-5 text-gray-600" />
-              <span className="font-medium text-gray-700">Appointments</span>
-            </button>
-            <button 
-              onClick={() => { onNavigate('reports'); setIsMenuOpen(false); }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-100 transition-colors text-left"
-            >
-              <FileText className="h-5 w-5 text-gray-600" />
-              <span className="font-medium text-gray-700">Reports</span>
-            </button>
-            <button 
-              onClick={() => { onNavigate('reference'); setIsMenuOpen(false); }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-100 transition-colors text-left"
-            >
-              <UserPlus className="h-5 w-5 text-gray-600" />
-              <span className="font-medium text-gray-700">Referral</span>
-            </button>
-
-          </div>
-        </div>
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-0 z-25 lg:hidden"
+          onClick={() => setIsMenuOpen(false)}
+          style={{ pointerEvents: 'auto' }}
+        ></div>
       )}
+
+      <Sidebar
+        isOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+        onNavigate={onNavigate}
+        currentPage="healthcare-directory"
+      />
 
       {/* Directory Selection Screen */}
       {!selectedDirectory && (
@@ -652,10 +637,7 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
               >
                 <ChevronLeft className="h-5 w-5" />
               </button>
-              <div className="flex items-center gap-4 flex-1 mx-4">
-                <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
-                  <img src="https://slelguoygbfzlpylpxfs.supabase.co/storage/v1/render/image/public/document-uploads/image-1767090787454.png?width=8000&height=8000&resize=contain" alt="Logo" className="h-14 w-14 object-contain" />
-                </div>
+              <div className="flex items-center flex-1 mx-4">
                 <div>
                   <h1 className="text-2xl font-bold text-gray-800">
                     {selectedDirectory === 'healthcare' ? 'Healthcare Directory' : 
@@ -903,21 +885,21 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
                               📍 {item.location}
                             </p>
                           )}
-                          {(item.committee_name_hindi || item['Company Name'] || item.department) && (
-                            <p className="text-gray-600 text-xs mt-1">
-                              {item.committee_name_hindi || item.department || item['Company Name']}
-                            </p>
-                          )}
+                            {(item.committee_name_hindi || item['Company Name'] || item.department) && (
+                              <p className="text-indigo-700 text-xs mt-1 font-bold bg-indigo-50 px-2 py-0.5 rounded-md inline-block">
+                                {item.committee_name_hindi || item.department || item['Company Name']}
+                              </p>
+                            )}
                           {(item.hospital_type || item.trust_name) && (
                             <p className="text-gray-600 text-xs mt-1">
                               {item.hospital_type || item.trust_name}
                             </p>
                           )}
-                          {(item.designation || item.qualification) && (
-                            <p className="text-gray-500 text-xs">
-                              {item.designation}{item.qualification ? ` | ${item.qualification}` : ''}
-                            </p>
-                          )}
+                            {(item.designation || item.qualification) && (
+                              <p className="text-purple-700 text-xs font-bold bg-purple-50 px-2 py-0.5 rounded-md inline-block">
+                                {item.designation}{item.qualification ? ` | ${item.qualification}` : ''}
+                              </p>
+                            )}
                           {item.city && (
                             <p className="text-gray-500 text-xs">
                               {item.city}, {item.state || ''}

@@ -2,3 +2,60 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Safe Area Variables - Updated by useAndroidSafeArea hook */
+:root {
+  --safe-area-top: 0px;
+  --safe-area-bottom: 0px;
+  --safe-area-left: 0px;
+  --safe-area-right: 0px;
+}
+
+/* Android-specific improvements */
+@media (prefers-color-scheme: light) {
+  html {
+    color-scheme: light;
+  }
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+/* Smooth momentum scrolling on iOS */
+html, body {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Fix for Android Chrome input focus zoom */
+input, textarea, select {
+  font-size: 16px;
+}
+
+/* Prevent iOS/Android rubber band scroll effect */
+body {
+  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+}
+
+/* Android status bar padding */
+@supports (padding: max(0px)) {
+  body {
+    padding-top: max(0px, var(--safe-area-top));
+    padding-bottom: max(0px, var(--safe-area-bottom));
+    padding-left: max(0px, var(--safe-area-left));
+    padding-right: max(0px, var(--safe-area-right));
+  }
+}

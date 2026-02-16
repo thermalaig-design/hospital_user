@@ -5,6 +5,7 @@ import TermsModal from './components/TermsModal';
 import ImageSlider from './components/ImageSlider';
 import { getProfile, getMarqueeUpdates, getSponsors, getUserNotifications, markNotificationAsRead, markAllNotificationsAsRead } from './services/api';
 import { fetchLatestGalleryImages } from './services/galleryService';
+import { registerSidebarState } from './hooks';
 
 
 /* eslint-disable react-refresh/only-export-components */
@@ -29,6 +30,41 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
   const [galleryImages, setGalleryImages] = useState([]);
   const [isGalleryLoading, setIsGalleryLoading] = useState(true);
   const [galleryError, setGalleryError] = useState(null);
+
+  // Register sidebar state with Android back handler
+  useEffect(() => {
+    registerSidebarState(isMenuOpen, () => setIsMenuOpen(false));
+  }, [isMenuOpen]);
+
+  // Disable scrolling when menu is open
+  useEffect(() => {
+    if (isMenuOpen) {
+      const scrollY = window.scrollY;
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.touchAction = 'none';
+    } else {
+      const scrollY = parseInt(document.body.style.top || '0') * -1;
+      document.documentElement.style.overflow = 'unset';
+      document.body.style.overflow = 'unset';
+      document.body.style.position = 'unset';
+      document.body.style.width = 'unset';
+      document.body.style.top = 'unset';
+      document.body.style.touchAction = 'auto';
+      window.scrollTo(0, scrollY);
+    }
+    return () => {
+      document.documentElement.style.overflow = 'unset';
+      document.body.style.overflow = 'unset';
+      document.body.style.position = 'unset';
+      document.body.style.width = 'unset';
+      document.body.style.top = 'unset';
+      document.body.style.touchAction = 'auto';
+    };
+  }, [isMenuOpen]);
 
   useEffect(() => {
     // Load profile from Supabase first, then fallback to localStorage
@@ -267,9 +303,9 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
   // ];
 
   return (
-    <div className="bg-white min-h-screen flex flex-col">
+    <div className={`bg-white min-h-screen flex flex-col ${isMenuOpen ? 'overflow-hidden' : ''}`}>
       {/* Navbar */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+      <div className="bg-white border-b border-gray-200 px-6 py-6 flex items-center justify-between sticky top-0 z-50 shadow-sm mt-6">
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
@@ -294,7 +330,7 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
 
             {/* Notifications Dropdown */}
             {isNotificationsOpen && (
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[60] overflow-hidden">
+              <div className="fixed left-1/2 -translate-x-1/2 top-20 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[60] overflow-hidden">
                 <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                   <h3 className="font-bold text-gray-900">Notifications ({notifications.length})</h3>
                   {unreadCount > 0 && (
@@ -398,11 +434,20 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
         </div>
       </div>
 
+      {/* Sidebar Overlay - transparent, content visible behind */}
+      {isMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-transparent z-40"
+          onClick={() => setIsMenuOpen(false)}
+        />
+      )}
+
       <Sidebar
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
         onNavigate={onNavigate}
         currentPage="home"
+        topOffset={96}
       />
 
       {/* Header Section - Premium VIP Design */}
@@ -422,8 +467,8 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
       </div>
 
       {/* Single Marquee Updates - Enhanced */}
-      <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white overflow-hidden relative shadow-md">
-        <div className="py-3">
+      <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white overflow-x-hidden relative shadow-md">
+        <div className="py-3 overflow-x-hidden w-full">
           <div 
             className="flex whitespace-nowrap" 
             style={{ 

@@ -21,7 +21,14 @@ import DeveloperDetails from './DeveloperDetails';
 import TermsAndConditions from './TermsAndConditions';
 import PrivacyPolicy from './PrivacyPolicy';
 import Gallery from './Gallery';
-import { useAndroidBackHandler } from './hooks/useAndroidBackHandler';
+import { 
+  useAndroidBackHandler,
+  useAndroidStatusBar,
+  useAndroidSafeArea,
+  useAndroidScreenOrientation,
+  useAndroidKeyboard,
+  useSwipeBackNavigation
+} from './hooks';
 
 const HospitalTrusteeApp = () => {
   const navigate = useNavigate();
@@ -31,8 +38,13 @@ const HospitalTrusteeApp = () => {
   const [previousScreen, setPreviousScreen] = useState(null);
   const [previousScreenName, setPreviousScreenName] = useState(null);
 
-  // Initialize Android back handler - this will handle all back navigation
+  // Initialize Android features
   useAndroidBackHandler();
+  useSwipeBackNavigation();
+  useAndroidStatusBar();
+  useAndroidSafeArea();
+  useAndroidScreenOrientation('PORTRAIT');
+  useAndroidKeyboard();
 
   // Appointment state
   const [appointmentForm, setAppointmentForm] = useState({
@@ -174,9 +186,9 @@ const HospitalTrusteeApp = () => {
   };
 
   return (
-    <div className={`w-full bg-white min-h-screen relative shadow-2xl ${
+    <div className={`bg-white min-h-screen relative shadow-2xl overflow-x-hidden ${
       (location.pathname === '/login' || location.pathname === '/otp-verification' || location.pathname === '/profile') ? 'overflow-hidden' : 'overflow-y-auto'
-    } max-w-full md:max-w-[430px] md:mx-auto`}>
+    } max-w-full md:max-w-[430px] md:mx-auto pt-2`}>
       <Routes>
         <Route 
           path="/login" 
@@ -190,6 +202,7 @@ const HospitalTrusteeApp = () => {
                 onNavigate={handleNavigate}
                 onLogout={() => {
                   localStorage.removeItem('isLoggedIn');
+                  localStorage.removeItem('user');
                   navigate('/login');
                 }}
                 isMember={isMember}
@@ -218,6 +231,7 @@ const HospitalTrusteeApp = () => {
                 onNavigateBack={() => navigate('/')}
                 onLogout={() => {
                   localStorage.removeItem('isLoggedIn');
+                  localStorage.removeItem('user');
                   navigate('/login');
                 }}
               />
@@ -232,6 +246,7 @@ const HospitalTrusteeApp = () => {
                 onNavigate={handleNavigate}
                 onNavigateBack={() => navigate('/')}
                 onLogout={() => {
+                  localStorage.removeItem('user');
                   localStorage.removeItem('isLoggedIn');
                   navigate('/login');
                 }}
@@ -247,6 +262,7 @@ const HospitalTrusteeApp = () => {
                 onNavigate={handleNavigate}
                 appointmentForm={appointmentForm} 
                 setAppointmentForm={setAppointmentForm} 
+                onNavigateBack={() => navigate('/')}
               />
             </ProtectedRoute>
           } 
@@ -350,31 +366,31 @@ const HospitalTrusteeApp = () => {
           path="/sponsor-details" 
           element={
             <ProtectedRoute>
-              <SponsorDetails onBack={() => window.history.back()} />
+              <SponsorDetails onBack={() => navigate(-1)} />
             </ProtectedRoute>
           } 
         />
-          <Route 
-            path="/developers" 
-            element={
-              <ProtectedRoute>
-                <DeveloperDetails 
-                  onNavigateBack={() => window.history.back()}
-                  onNavigate={handleNavigate}
-                />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/gallery" 
-            element={
-              <ProtectedRoute>
-                <Gallery 
-                  onNavigateBack={() => navigate('/')}
-                />
-              </ProtectedRoute>
-            } 
-          />
+        <Route 
+          path="/developers" 
+          element={
+            <ProtectedRoute>
+              <DeveloperDetails 
+                onNavigateBack={() => navigate(-1)}
+                onNavigate={handleNavigate}
+              />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/gallery" 
+          element={
+            <ProtectedRoute>
+              <Gallery 
+                onNavigateBack={() => navigate('/')}
+              />
+            </ProtectedRoute>
+          } 
+        />
 
           <Route 
             path="/otp-verification" 

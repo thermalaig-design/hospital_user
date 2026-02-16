@@ -1,13 +1,15 @@
 import React from 'react';
-import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
+import { useBackNavigation } from './hooks';
 
 const TermsAndConditions = () => {
   const navigate = useNavigate();
+  useBackNavigation(); // Default: uses window.history.back()
 
   return (
     <div className="flex flex-col min-h-screen bg-white">
-      <div className="bg-blue-600 text-white p-4 flex items-center gap-4">
+      <div className="bg-blue-600 text-white p-4 flex items-center gap-4 mt-6">
         <button onClick={() => navigate(-1)} className="p-1">
           <ArrowLeft size={24} />
         </button>

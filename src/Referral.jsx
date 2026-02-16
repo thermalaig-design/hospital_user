@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { User, Users, Clock, FileText, UserPlus, Bell, ChevronRight, LogOut, Heart, Shield, Plus, ArrowRight, Pill, ShoppingCart, Calendar, Stethoscope, Building2, Phone, QrCode, Monitor, Brain, Package, FileCheck, Search, Filter, MapPin, Star, HelpCircle, BookOpen, Video, Headphones, Menu, X, Home as HomeIcon, Settings, Eye, Edit2, Info, CheckCircle2 } from 'lucide-react';
+import { User, Users, Clock, FileText, UserPlus, Bell, ChevronRight, LogOut, Heart, Shield, Plus, ArrowRight, Pill, ShoppingCart, Calendar, Stethoscope, Building2, Phone, QrCode, Monitor, Brain, Package, FileCheck, Search, Filter, MapPin, Star, HelpCircle, BookOpen, Video, Headphones, Menu, X, Home as HomeIcon, Settings, Eye, Edit2, Info, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { getDoctors, createReferral, getUserReferrals, getReferralCounts, updateReferral, deleteReferral } from './services/api';
+
 import Sidebar from './components/Sidebar';
 
 const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, setNewReference }) => {
@@ -11,6 +12,38 @@ const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, s
   const [counts, setCounts] = useState({ generalCount: 0, ewsCount: 0, total: 0 });
   const [selectedReferral, setSelectedReferral] = useState(null);
   const [editingReferral, setEditingReferral] = useState(null);
+
+  // Scroll locking when sidebar is open
+  useEffect(() => {
+    if (isMenuOpen) {
+      const scrollY = window.scrollY;
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.touchAction = 'none';
+    } else {
+      const scrollY = parseInt(document.body.style.top || '0') * -1;
+      document.documentElement.style.overflow = 'unset';
+      document.body.style.overflow = 'unset';
+      document.body.style.position = 'unset';
+      document.body.style.width = 'unset';
+      document.body.style.top = 'unset';
+      document.body.style.touchAction = 'auto';
+      window.scrollTo(0, scrollY);
+    }
+    return () => {
+      document.documentElement.style.overflow = 'unset';
+      document.body.style.overflow = 'unset';
+      document.body.style.position = 'unset';
+      document.body.style.width = 'unset';
+      document.body.style.top = 'unset';
+      document.body.style.touchAction = 'auto';
+    };
+  }, [isMenuOpen]);
+
+
 
   // Load doctors from database
   useEffect(() => {
@@ -216,7 +249,7 @@ const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, s
   return (
     <div className="bg-white min-h-screen pb-10 relative">
       {/* Navbar */}
-      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-5 flex items-center justify-between sticky top-0 z-50 shadow-sm mt-6">
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
@@ -224,13 +257,30 @@ const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, s
           {isMenuOpen ? <X className="h-6 w-6 text-gray-700" /> : <Menu className="h-6 w-6 text-gray-700" />}
         </button>
         <h1 className="text-lg font-bold text-gray-800">Patient Referral</h1>
-        <button
-          onClick={() => onNavigate('home')}
-          className="p-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 transition-colors border border-indigo-200"
-        >
-          <HomeIcon className="h-5 w-5 text-indigo-600" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onNavigate('home')}
+            className="p-2.5 rounded-xl hover:bg-gray-100 transition-colors"
+            title="Back"
+          >
+            <ArrowLeft className="h-5 w-5 text-indigo-600" />
+          </button>
+          <button
+            onClick={() => onNavigate('home')}
+            className="p-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 transition-colors border border-indigo-200"
+          >
+            <HomeIcon className="h-5 w-5 text-indigo-600" />
+          </button>
+        </div>
       </div>
+
+      {/* Sidebar Overlay - transparent, content visible behind */}
+      {isMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-transparent z-40"
+          onClick={() => setIsMenuOpen(false)}
+        />
+      )}
 
       <Sidebar
         isOpen={isMenuOpen}

@@ -73,7 +73,7 @@ app.get('/favicon.ico', (req, res) => res.status(204).end());
 app.get('/', (req, res) => {
   res.json({
     success: true,
-    message: 'Hospital Management Backend API running 🚀',
+    message: 'MAH SETU Backend API running 🚀',
     status: 'healthy',
     timestamp: new Date().toISOString(),
     endpoints: {
@@ -92,7 +92,7 @@ app.get('/', (req, res) => {
 app.get('/api', (req, res) => {
   res.json({
     success: true,
-    message: 'Hospital Management API',
+    message: 'MAH SETU API',
     version: '1.0.0',
     endpoints: {
       auth: '/api/auth',
