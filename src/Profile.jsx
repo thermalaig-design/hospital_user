@@ -394,27 +394,27 @@ const Profile = ({ onNavigate, onProfileUpdate }) => {
   return (
     <div className="min-h-screen pb-10 bg-gradient-to-br from-gray-50 via-white to-gray-50 font-sans relative">
       {/* Sticky Header */}
-      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-5 flex items-center justify-between sticky top-0 z-50 shadow-sm mt-6">
+      <div className={`${isMenuOpen ? 'bg-gray-900 border-gray-700 shadow-2xl' : 'bg-white border-gray-200 shadow-sm'} border-b px-4 sm:px-6 py-5 flex items-center justify-between sticky top-0 z-50 mt-6 transition-all duration-300`}>
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
         >
-          {isMenuOpen ? <X className="h-6 w-6 text-gray-700" /> : <Menu className="h-6 w-6 text-gray-700" />}
+          {isMenuOpen ? <X className={`h-6 w-6 ${isMenuOpen ? 'text-white' : 'text-gray-700'}`} /> : <Menu className={`h-6 w-6 ${isMenuOpen ? 'text-white' : 'text-gray-700'}`} />}
         </button>
-        <h1 className="text-lg font-bold text-gray-900">Edit Profile</h1>
+        <h1 className={`text-lg font-bold ${isMenuOpen ? 'text-white' : 'text-gray-900'} transition-colors`}>Edit Profile</h1>
         <button
           onClick={() => onNavigate('home')}
-          className="p-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 transition-colors border border-indigo-200"
+          className={`p-2.5 rounded-xl transition-colors border ${isMenuOpen ? 'border-gray-700 text-white hover:bg-gray-800' : 'border-indigo-200 text-indigo-600 bg-indigo-50 hover:bg-indigo-100'}`}
         >
-          <HomeIcon className="h-5 w-5 text-indigo-600" />
+          <HomeIcon className="h-5 w-5" />
         </button>
       </div>
 
       {/* Sidebar Overlay */}
       {isMenuOpen && (
-        <div className="fixed inset-0 z-30 lg:hidden">
-          <div className="fixed inset-0 bg-black bg-opacity-25" onClick={() => setIsMenuOpen(false)}></div>
-          <div className="fixed inset-y-0 left-0 w-64 bg-white shadow-lg">
+        <div className="absolute inset-0 z-30 lg:hidden">
+          <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setIsMenuOpen(false)}></div>
+          <div className="absolute inset-y-0 left-0 w-64 bg-white shadow-lg">
             <Sidebar
               isOpen={isMenuOpen}
               onClose={() => setIsMenuOpen(false)}

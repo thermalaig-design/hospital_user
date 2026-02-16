@@ -8,9 +8,21 @@ const Sidebar = ({ isOpen, onClose, onNavigate, currentPage }) => {
   const touchEndX = useRef(0);
   const navigate = useNavigate();
 
+  // Disable body scroll when sidebar is open
+    useEffect(() => {
+      if (isOpen) {
+        document.body.style.overflow = 'hidden';
+      } else {
+        document.body.style.overflow = '';
+      }
+      return () => {
+        document.body.style.overflow = '';
+      };
+    }, [isOpen]);
+
   // Handle swipe gesture to close sidebar
-  useEffect(() => {
-    if (!isOpen) return;
+    useEffect(() => {
+      if (!isOpen) return;
 
     const handleTouchStart = (e) => {
       touchStartX.current = e.touches[0].clientX;
@@ -59,7 +71,7 @@ const Sidebar = ({ isOpen, onClose, onNavigate, currentPage }) => {
     <>
       {/* Overlay backdrop */}
       <div 
-        className="fixed inset-0 bg-black/50 z-40"
+        className="fixed inset-0 bg-black/20 z-40"
         onClick={onClose}
       />
       
