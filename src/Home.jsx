@@ -305,22 +305,22 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
   return (
     <div className={`bg-white min-h-screen flex flex-col relative ${isMenuOpen ? 'overflow-hidden' : ''}`}>
       {/* Navbar */}
-      <div className={`${isMenuOpen ? 'bg-gray-900 border-gray-700 shadow-2xl' : 'bg-white border-gray-200 shadow-sm'} border-b px-6 py-6 flex items-center justify-between sticky top-0 z-50 mt-6 transition-all duration-300`}>
+      <div className="bg-white border-gray-200 shadow-sm border-b px-6 py-6 flex items-center justify-between sticky top-0 z-50 mt-6 transition-all duration-300">
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
         >
-          {isMenuOpen ? <X className={`h-6 w-6 ${isMenuOpen ? 'text-white' : 'text-gray-700'}`} /> : <Menu className={`h-6 w-6 ${isMenuOpen ? 'text-white' : 'text-gray-700'}`} />}
+          {isMenuOpen ? <X className="h-6 w-6 text-gray-700" /> : <Menu className="h-6 w-6 text-gray-700" />}
         </button>
-        <h1 className={`text-lg font-bold ${isMenuOpen ? 'text-white' : 'text-gray-800'} transition-colors`}>Home</h1>
+        <h1 className="text-lg font-bold text-gray-800 transition-colors">Home</h1>
         <div className="flex items-center gap-2">
           {/* Notifications Bell */}
           <div className="relative">
             <button 
               onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-              className={`p-2 rounded-xl transition-colors relative ${isMenuOpen ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
+              className="p-2 rounded-xl transition-colors relative hover:bg-gray-100"
             >
-              <Bell className={`h-6 w-6 ${isMenuOpen ? 'text-white' : 'text-gray-700'}`} />
+              <Bell className="h-6 w-6 text-gray-700" />
               {unreadCount > 0 && (
                 <span className="absolute top-1.5 right-1.5 bg-red-500 text-white text-[10px] font-bold h-4 w-4 flex items-center justify-center rounded-full border-2 border-white">
                   {unreadCount > 9 ? '9+' : unreadCount}
@@ -426,14 +426,6 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
           </button>
           </div>
       </div>
-
-      {/* Sidebar Overlay - transparent, content visible behind */}
-      {isMenuOpen && (
-        <div 
-          className="absolute inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-          onClick={() => setIsMenuOpen(false)}
-        />
-      )}
 
       <Sidebar
         isOpen={isMenuOpen}

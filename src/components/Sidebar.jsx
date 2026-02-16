@@ -8,18 +8,6 @@ const Sidebar = ({ isOpen, onClose, onNavigate, currentPage }) => {
   const touchEndX = useRef(0);
   const navigate = useNavigate();
 
-  // Disable body scroll when sidebar is open
-    useEffect(() => {
-      if (isOpen) {
-        document.body.style.overflow = 'hidden';
-      } else {
-        document.body.style.overflow = '';
-      }
-      return () => {
-        document.body.style.overflow = '';
-      };
-    }, [isOpen]);
-
   // Handle swipe gesture to close sidebar
     useEffect(() => {
       if (!isOpen) return;
@@ -71,14 +59,15 @@ const Sidebar = ({ isOpen, onClose, onNavigate, currentPage }) => {
     <>
       {/* Overlay backdrop */}
       <div 
-        className="fixed inset-0 bg-black/20 z-40"
+        className="absolute inset-0 bg-black/10 z-40"
         onClick={onClose}
       />
       
       {/* Sidebar */}
       <div 
         ref={sidebarRef}
-        className="fixed left-0 top-0 bottom-0 w-72 bg-white shadow-2xl z-50 overflow-y-auto flex flex-col"
+        className="absolute left-0 top-0 bottom-0 w-72 bg-white shadow-2xl z-50 overflow-y-auto flex flex-col"
+        style={{ maxWidth: '100%' }}
       >
         <div className="p-6 pt-8 border-b border-gray-200">
           <div className="flex items-center gap-3 mb-4">
