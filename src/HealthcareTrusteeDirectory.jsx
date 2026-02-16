@@ -473,7 +473,7 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
         </button>
         <h1 className="text-lg font-bold text-gray-800">
           {selectedDirectory ? (selectedDirectory === 'healthcare' ? 'Healthcare Directory' : 
-           selectedDirectory === 'committee' ? 'Committee Directory' : 'Trustee Directory') : 'Directory Selection'}
+           selectedDirectory === 'committee' ? 'Committee Directory' : 'Trustee & Patron Directory') : 'Directory Selection'}
         </h1>
         <button
           onClick={() => onNavigate('home')}
@@ -641,7 +641,7 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
                 <div>
                   <h1 className="text-2xl font-bold text-gray-800">
                     {selectedDirectory === 'healthcare' ? 'Healthcare Directory' : 
-                     selectedDirectory === 'committee' ? 'Committee Directory' : 'Trustee Directory'}
+                     selectedDirectory === 'committee' ? 'Committee Directory' : 'Trustee & Patron Directory'}
                   </h1>
                   <p className="text-gray-500 text-sm font-medium">
                     {selectedDirectory === 'healthcare' ? 'Find Doctors & Hospitals' : 
