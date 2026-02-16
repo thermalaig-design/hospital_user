@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Users, Clock, FileText, UserPlus, Bell, ChevronRight, LogOut, Heart, Shield, Plus, ArrowRight, Pill, ShoppingCart, Calendar, Stethoscope, Building2, Phone, QrCode, Monitor, Brain, Package, FileCheck, Search, Filter, MapPin, Star, HelpCircle, BookOpen, Video, Headphones, Menu, X, Home as HomeIcon, Settings, UserCircle, Image } from 'lucide-react';
+import { User, Users, Clock, FileText, UserPlus, Bell, ChevronRight, Heart, Shield, Plus, ArrowRight, Pill, ShoppingCart, Calendar, Stethoscope, Building2, Phone, QrCode, Monitor, Brain, Package, FileCheck, Search, Filter, MapPin, Star, HelpCircle, BookOpen, Video, Headphones, Menu, X, Home as HomeIcon, Settings, UserCircle, Image } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import TermsModal from './components/TermsModal';
 import ImageSlider from './components/ImageSlider';
@@ -424,14 +424,7 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
               <UserCircle className="h-7 w-7 text-gray-700" />
             ) : null}
           </button>
-          <button 
-            onClick={onLogout}
-            className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
-          >
-            <LogOut className="h-5 w-5 text-gray-700" />
-          </button>
-
-        </div>
+          </div>
       </div>
 
       {/* Sidebar Overlay - transparent, content visible behind */}

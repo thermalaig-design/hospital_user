@@ -533,10 +533,11 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
             {/* Committee Directory Card */}
             <div 
               className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex items-center gap-4 group hover:shadow-md hover:border-indigo-100 transition-all cursor-pointer"
-              onClick={() => {
-                setSelectedDirectory('committee');
-                setActiveTab('committee'); // Set first tab immediately to show data
-              }}
+                onClick={() => {
+                  setSelectedDirectory('committee');
+                  setActiveTab('committee'); // Set first tab immediately to show data
+                  setSearchQuery('');
+                }}
             >
               <div className="bg-indigo-50 h-16 w-16 rounded-2xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300">
                 <Users className="h-7 w-7" />
