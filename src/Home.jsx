@@ -303,7 +303,7 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
   // ];
 
   return (
-    <div className={`bg-white min-h-screen flex flex-col relative ${isMenuOpen ? 'overflow-hidden' : ''}`}>
+    <div className={`bg-white min-h-screen flex flex-col relative ${isMenuOpen ? 'overflow-hidden max-h-screen' : ''}`}>
       {/* Navbar */}
       <div className="bg-white border-gray-200 shadow-sm border-b px-6 py-6 flex items-center justify-between sticky top-0 z-50 mt-6 transition-all duration-300">
         <button
