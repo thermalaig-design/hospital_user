@@ -102,22 +102,28 @@ const Sidebar = ({ isOpen, onClose, onNavigate, currentPage, topOffset = 88 }) =
         ))}
       </div>
 
-      <div className="px-4 pb-5 pt-2 border-t border-gray-100 bg-white/95 backdrop-blur-sm">
-        <button
-          onClick={() => {
-            localStorage.removeItem('isLoggedIn');
-            navigate('/login');
-            if (onClose) onClose();
-          }}
-          className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-red-50 text-red-600 font-semibold hover:bg-red-100 transition-colors active:scale-[0.98]"
-        >
-          <div className="flex items-center gap-3">
-            <LogOut className="h-5 w-5" />
-            <span>Logout</span>
-          </div>
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      </div>
+        <div className="px-4 pb-5 pt-2 border-t border-gray-100 bg-white/95 backdrop-blur-sm relative z-10">
+          <button
+            onTouchEnd={(e) => {
+              e.stopPropagation();
+              localStorage.removeItem('isLoggedIn');
+              navigate('/login');
+              if (onClose) onClose();
+            }}
+            onClick={() => {
+              localStorage.removeItem('isLoggedIn');
+              navigate('/login');
+              if (onClose) onClose();
+            }}
+            className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-red-50 text-red-600 font-semibold hover:bg-red-100 transition-colors active:scale-[0.98] cursor-pointer touch-manipulation"
+          >
+            <div className="flex items-center gap-3 pointer-events-none">
+              <LogOut className="h-5 w-5" />
+              <span>Logout</span>
+            </div>
+            <ChevronRight className="h-4 w-4 pointer-events-none" />
+          </button>
+        </div>
     </div>
   );
 };
