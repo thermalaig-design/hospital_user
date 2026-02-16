@@ -392,17 +392,12 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
     const hasChanged = filtered.length !== previousFilteredRef.current.length ||
       !filtered.every((item, index) => item['S. No.'] === previousFilteredRef.current[index]?.['S. No.']);
     
-    if (hasChanged) {
-      setFilteredMembers(filtered);
-      previousFilteredRef.current = filtered;
-      // Reset to first page when search, tab, or directory changes
-      setCurrentPage(1);
-      
-      // Scroll to the content area when tab changes
-      if (contentRef.current) {
-        contentRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (hasChanged) {
+        setFilteredMembers(filtered);
+        previousFilteredRef.current = filtered;
+        // Reset to first page when search, tab, or directory changes
+        setCurrentPage(1);
       }
-    }
   }, [selectedDirectory, activeTab, searchQuery, allMembers, committeeMembers, currentTabs]); // getMembersByDirectoryAndTab is stable due to useCallback
 
   // Scroll to top of container when component mounts
