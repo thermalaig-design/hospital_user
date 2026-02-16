@@ -183,24 +183,12 @@ export function Gallery({ onNavigate }) {
         </div>
       </div>
 
-      {/* Sidebar Overlay - transparent, content visible behind */}
-      {isMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-transparent z-40"
-          onClick={() => setIsMenuOpen(false)}
+        <Sidebar
+          isOpen={isMenuOpen}
+          onClose={() => setIsMenuOpen(false)}
+          onNavigate={onNavigate}
+          currentPage="gallery"
         />
-      )}
-
-      <Sidebar
-        isOpen={isMenuOpen}
-        onClose={() => setIsMenuOpen(false)}
-        onNavigate={(page) => {
-          setIsMenuOpen(false);
-          // Handle navigation if needed
-        }}
-        currentPage="gallery"
-        topOffset={96}
-      />
 
       {/* Lightbox Modal */}
       {selectedImage && (
