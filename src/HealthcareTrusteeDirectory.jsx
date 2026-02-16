@@ -142,20 +142,24 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
   };
 
   // Restore directory and tab when coming back from member details
-  useEffect(() => {
-    const restoreDirectory = sessionStorage.getItem('restoreDirectory');
-    if (restoreDirectory) {
-      setSelectedDirectory(restoreDirectory);
-      if (restoreDirectory === 'healthcare') {
-        setActiveTab('doctors');
-      } else if (restoreDirectory === 'committee') {
-        setActiveTab('committee');
-      } else if (restoreDirectory === 'trustee') {
-        setActiveTab('trustees');
+    useEffect(() => {
+      const restoreDirectory = sessionStorage.getItem('restoreDirectory');
+      const restoreTab = sessionStorage.getItem('restoreDirectoryTab');
+      if (restoreDirectory) {
+        setSelectedDirectory(restoreDirectory);
+        if (restoreTab) {
+          setActiveTab(restoreTab);
+        } else if (restoreDirectory === 'healthcare') {
+          setActiveTab('doctors');
+        } else if (restoreDirectory === 'committee') {
+          setActiveTab('committee');
+        } else if (restoreDirectory === 'trustee') {
+          setActiveTab('trustees');
+        }
+        sessionStorage.removeItem('restoreDirectory');
+        sessionStorage.removeItem('restoreDirectoryTab');
       }
-      sessionStorage.removeItem('restoreDirectory');
-    }
-  }, []);
+    }, []);
 
   // Load cached data if available
   useEffect(() => {
