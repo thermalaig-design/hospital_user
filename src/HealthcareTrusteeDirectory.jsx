@@ -933,12 +933,13 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
                           Email
                         </a>
                       )}
-                      {(item.address || item['Address Home']) && (
-                        <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg text-gray-600 text-xs font-semibold border border-gray-100">
-                          <User className="h-3.5 w-3.5" />
-                          <span className="truncate max-w-[150px]">{item.address || item['Address Home']}</span>
-                        </div>
-                      )}
+                        {/* Show address only if city is not already shown (avoid duplicate location) */}
+                        {(item.address || item['Address Home']) && !item.city && (
+                          <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg text-gray-600 text-xs font-semibold border border-gray-100">
+                            <User className="h-3.5 w-3.5" />
+                            <span className="truncate max-w-[150px]">{item.address || item['Address Home']}</span>
+                          </div>
+                        )}
                     </div>
                   </div>
                   <div className="bg-gray-50 p-2 rounded-full group-hover:bg-indigo-50 transition-colors">

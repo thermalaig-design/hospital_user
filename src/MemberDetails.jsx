@@ -61,18 +61,16 @@ const MemberDetails = ({ member, onNavigateBack, previousScreenName }) => {
     <div className="min-h-screen bg-gray-50">
       {/* Header Section */}
       <div className="bg-white px-6 pt-6 pb-4 shadow-sm">
-        <div className="flex items-center gap-4 mb-4">
-          <button 
-            onClick={onNavigateBack}
-            className="p-2 rounded-xl hover:bg-gray-100 transition-colors flex items-center gap-2 text-indigo-600"
-          >
-            <ChevronLeft className="h-5 w-5" />
-            <span className="text-sm font-medium">{getScreenName()}</span>
-          </button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Member Details</h1>
+          <div className="flex items-center mb-4">
+            <button 
+              onClick={onNavigateBack}
+              className="p-2 rounded-xl hover:bg-gray-100 transition-colors flex items-center gap-1 text-indigo-600"
+            >
+              <ChevronLeft className="h-5 w-5" />
+              <span className="text-sm font-medium">Back</span>
+            </button>
+            <h1 className="text-2xl font-bold text-gray-800 flex-1 text-center pr-16">Member Details</h1>
           </div>
-        </div>
       </div>
 
       {/* Member Details Card */}
@@ -109,7 +107,9 @@ const MemberDetails = ({ member, onNavigateBack, previousScreenName }) => {
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-800">{member.member_name_english || member.Name || 'N/A'}</h2>
-              <p className="text-indigo-600 text-sm font-medium">{member.member_role || member.type || 'N/A'}</p>
+                {!member.isHospitalMember && (
+                  <p className="text-indigo-600 text-sm font-medium">{member.member_role || member.type || 'N/A'}</p>
+                )}
             </div>
           </div>
 
@@ -174,17 +174,7 @@ const MemberDetails = ({ member, onNavigateBack, previousScreenName }) => {
                       </div>
                     )}
                     
-                    {member.type && member.type !== 'N/A' && (
-                      <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-2xl">
-                        <User className="h-5 w-5 text-gray-500 mt-0.5 flex-shrink-0" />
-                        <div>
-                          <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Type</p>
-                          <p className="font-medium text-gray-800">{member.type}</p>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {member['Company Name'] && member['Company Name'] !== 'N/A' && (
+                      {member['Company Name'] && member['Company Name'] !== 'N/A' && (
                       <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-2xl">
                         <Building2 className="h-5 w-5 text-gray-500 mt-0.5 flex-shrink-0" />
                         <div>
@@ -559,20 +549,11 @@ const MemberDetails = ({ member, onNavigateBack, previousScreenName }) => {
                       </div>
                     )}
                     
-                    {member.type && (
-                      <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-2xl">
-                        <User className="h-5 w-5 text-gray-500 mt-0.5 flex-shrink-0" />
-                        <div>
-                          <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Type</p>
-                          <p className="font-medium text-gray-800">{member.type}</p>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                );
-              }
-              
-              // Show healthcare-specific fields (from opd_schedule) only if this is a healthcare member
+                    </>
+                  );
+                }
+                
+                // Show healthcare-specific fields (from opd_schedule) only if this is a healthcare member
               return (
                 <>
                   {member.consultant_name && member.consultant_name !== 'N/A' && (
@@ -657,18 +638,9 @@ const MemberDetails = ({ member, onNavigateBack, previousScreenName }) => {
                     </div>
                   )}
                   
-                  {member.type && (
-                    <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-2xl">
-                      <User className="h-5 w-5 text-gray-500 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Type</p>
-                        <p className="font-medium text-gray-800">{member.type}</p>
-                      </div>
-                    </div>
-                  )}
-                </>
-              );
-            })()}
+                  </>
+                );
+              })()}
           </div>
         </div>
       </div>
