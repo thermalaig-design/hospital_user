@@ -877,17 +877,18 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
                               {item['Membership number']}
                             </p>
                           )}
-                    {/* Hide type badge for doctors in healthcare directory */}
-                            {!(selectedDirectory === 'healthcare' && activeTab === 'doctors') && (
-                              <p className="text-indigo-600 text-[10px] font-bold uppercase tracking-widest bg-indigo-50 px-2 py-0.5 rounded-full inline-block group-hover:bg-indigo-100 transition-colors">
-                                {item.position || item.member_role || item.type || item['Company Name'] || 'N/A'}
+                      {/* Hide type badge for doctors and hospitals in healthcare directory */}
+                              {!(selectedDirectory === 'healthcare' && (activeTab === 'doctors' || activeTab === 'hospitals')) && (
+                                <p className="text-indigo-600 text-[10px] font-bold uppercase tracking-widest bg-indigo-50 px-2 py-0.5 rounded-full inline-block group-hover:bg-indigo-100 transition-colors">
+                                  {item.position || item.member_role || item.type || item['Company Name'] || 'N/A'}
+                                </p>
+                              )}
+                          {item.location && (
+                              <p className="text-emerald-700 text-xs font-bold bg-emerald-50 px-2 py-0.5 rounded-md inline-flex items-center gap-1 mt-1">
+                                <MapPin className="h-3 w-3" />
+                                {item.location}
                               </p>
                             )}
-                          {item.location && (
-                            <p className="text-gray-600 text-xs mt-1 font-medium">
-                              📍 {item.location}
-                            </p>
-                          )}
                             {(item.committee_name_hindi || item['Company Name'] || item.department) && (
                               <p className="text-indigo-700 text-xs mt-1 font-bold bg-indigo-50 px-2 py-0.5 rounded-md inline-block">
                                 {item.committee_name_hindi || item.department || item['Company Name']}
@@ -903,11 +904,12 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
                                 {item.designation}{item.qualification ? ` | ${item.qualification}` : ''}
                               </p>
                             )}
-                          {item.city && (
-                            <p className="text-gray-500 text-xs">
-                              {item.city}, {item.state || ''}
-                            </p>
-                          )}
+                            {item.city && (
+                              <p className="text-emerald-700 text-xs font-bold bg-emerald-50 px-2 py-0.5 rounded-md inline-flex items-center gap-1 mt-1">
+                                <MapPin className="h-3 w-3" />
+                                {item.city}{item.state ? `, ${item.state}` : ''}
+                              </p>
+                            )}
                         </div>
                       </div>
                     </div>
