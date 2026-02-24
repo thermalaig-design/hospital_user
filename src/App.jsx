@@ -49,7 +49,7 @@ const HospitalTrusteeApp = () => {
   useAndroidScreenOrientation('PORTRAIT');
   useAndroidKeyboard();
 
-  // ─── Birthday Notification Check ────────────────────────────────────────
+  // ─── Birthday Notification Check (Direct Supabase) ──────────────────────
   useEffect(() => {
     const checkBirthday = async () => {
       try {
@@ -61,22 +61,65 @@ const HospitalTrusteeApp = () => {
         if (!userId) return;
 
         // Avoid showing local notification more than once per day
-        const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+        const todayIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+        const today = todayIST.toISOString().slice(0, 10); // YYYY-MM-DD
         const localKey = `birthdayNotif_${userId}_${today}`;
         if (localStorage.getItem(localKey)) return;
 
-        // Call backend to check birthday & insert DB notification
-        const response = await fetch('https://mah.contractmitra.in/api/notifications/check-birthdays', {
-          headers: { 'user-id': String(userId) },
-        });
-        const data = await response.json();
+        // Import supabase dynamically to avoid circular deps
+        const { supabase } = await import('./services/supabaseClient');
 
-        if (!data.success || !data.birthdayToday) return;
+        // 1. Fetch user profile from Supabase directly
+        const { data: profile, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('name, dob')
+          .or(`mobile.eq.${userId},user_identifier.eq.${userId}`)
+          .limit(1)
+          .single();
 
-        // Mark as shown locally (prevents repeat on same day)
+        if (profileError || !profile || !profile.dob) return;
+
+        // 2. Compare DOB month+day with today
+        const dobParts = profile.dob.split('-');
+        if (dobParts.length < 3) return;
+        const dobMonth = dobParts[1];
+        const dobDay = dobParts[2].substring(0, 2);
+        const todayMonth = String(todayIST.getUTCMonth() + 1).padStart(2, '0');
+        const todayDay = String(todayIST.getUTCDate()).padStart(2, '0');
+
+        if (dobMonth !== todayMonth || dobDay !== todayDay) return;
+
+        const userName = profile.name || 'Member';
+        console.log(`🎉 Birthday detected for: ${userName}`);
+
+        // 3. Check if birthday notification already inserted today in DB
+        const { data: existing } = await supabase
+          .from('notifications')
+          .select('id')
+          .eq('user_id', String(userId))
+          .eq('type', 'birthday')
+          .gte('created_at', `${today}T00:00:00.000Z`)
+          .limit(1);
+
+        const birthdayMessage = `🎂 Maharaja Agrasen Samiti ki taraf se aapko janamdin ki hardik shubhkamnayein, ${userName} ji! Aapka yeh din bahut khaas ho! 🎉🎊`;
+
+        if (!existing || existing.length === 0) {
+          // Insert birthday notification into DB (shows in Notifications screen)
+          await supabase.from('notifications').insert({
+            user_id: String(userId),
+            title: '🎂 Happy Birthday!',
+            message: birthdayMessage,
+            type: 'birthday',
+            is_read: false,
+            created_at: new Date().toISOString(),
+          });
+          console.log('✅ Birthday notification inserted in DB');
+        }
+
+        // 4. Mark shown locally so it doesn't repeat today
         localStorage.setItem(localKey, '1');
 
-        // Show Capacitor local push notification (visible even when app is in background)
+        // 5. Show Capacitor local push notification on phone
         try {
           const permResult = await LocalNotifications.requestPermissions();
           if (permResult.display === 'granted' || permResult.display === 'prompt-with-rationale') {
@@ -85,8 +128,8 @@ const HospitalTrusteeApp = () => {
                 {
                   id: Math.floor(Math.random() * 100000),
                   title: '🎂 Happy Birthday!',
-                  body: `Maharaja Agrasen Samiti ki taraf se aapko janamdin ki hardik shubhkamnayein, ${data.name} ji! 🎉🎊`,
-                  schedule: { at: new Date(Date.now() + 1000) }, // 1 second delay
+                  body: `Maharaja Agrasen Samiti ki taraf se aapko janamdin ki hardik shubhkamnayein, ${userName} ji! 🎉🎊`,
+                  schedule: { at: new Date(Date.now() + 1000) },
                   sound: 'default',
                   smallIcon: 'ic_launcher',
                   actionTypeId: '',
