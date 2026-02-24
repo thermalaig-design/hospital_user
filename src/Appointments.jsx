@@ -1,25 +1,87 @@
-import React, { useState, useEffect } from 'react';
-import { User, Phone, ChevronRight, Menu, X, Calendar, Stethoscope, Home as HomeIcon, Mail, AlertCircle, Clock, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { User, Phone, Menu, X, Calendar, Stethoscope, Home as HomeIcon, Mail, AlertCircle, Clock, ArrowLeft, ChevronRight } from 'lucide-react';
+
 import { getDoctors } from './services/api';
 import { bookAppointment } from './services/appointmentService';
 import Sidebar from './components/Sidebar';
 import { registerSidebarState } from './hooks';
 
+const SPECIALTIES = [
+  { id: 'covid', label: 'COVID', emoji: '🦠', bg: 'bg-red-50' },
+  { id: 'skin', label: 'Skin & Hair', emoji: '✨', bg: 'bg-yellow-50' },
+  { id: 'womens', label: "Women's Health", emoji: '🤰', bg: 'bg-pink-50' },
+  { id: 'general', label: 'General Physician', emoji: '🩺', bg: 'bg-blue-50' },
+  { id: 'dental', label: 'Dental Care', emoji: '🦷', bg: 'bg-sky-50' },
+  { id: 'orthopedics', label: 'Bones & Joints', emoji: '🦴', bg: 'bg-amber-50' },
+  { id: 'mental', label: 'Mental Wellness', emoji: '��', bg: 'bg-purple-50' },
+  { id: 'ent', label: 'Ear, Nose, Throat', emoji: '👂', bg: 'bg-orange-50' },
+  { id: 'sexual', label: 'Sexual Health', emoji: '💊', bg: 'bg-rose-50' },
+  { id: 'child', label: 'Child Specialist', emoji: '👶', bg: 'bg-pink-50' },
+  { id: 'homeopathy', label: 'Homeopathy', emoji: '🌿', bg: 'bg-emerald-50' },
+  { id: 'gastro', label: 'Digestive Issues', emoji: '🍽️', bg: 'bg-green-50' },
+  { id: 'eye', label: 'Eye Specialist', emoji: '👁', bg: 'bg-cyan-50' },
+  { id: 'cardiology', label: 'Heart', emoji: '❤️', bg: 'bg-red-50' },
+  { id: 'physio', label: 'Physiotherapy', emoji: '🏃', bg: 'bg-indigo-50' },
+  { id: 'neurology', label: 'Brain & Nerves', emoji: '🧬', bg: 'bg-violet-50' },
+  { id: 'pulmonology', label: 'Lungs & Breathing', emoji: '🫁', bg: 'bg-sky-50' },
+  { id: 'nephrology', label: 'Kidney Issues', emoji: '💧', bg: 'bg-blue-50' },
+  { id: 'surgery', label: 'General Surgery', emoji: '🏥', bg: 'bg-indigo-50' },
+  { id: 'diabetes', label: 'Diabetes Mgmt.', emoji: '🩸', bg: 'bg-red-50' },
+  { id: 'oncology', label: 'Cancer Care', emoji: '🎗️', bg: 'bg-fuchsia-50' },
+  { id: 'pathology', label: 'Lab & Tests', emoji: '🔬', bg: 'bg-teal-50' },
+  { id: 'ayurveda', label: 'Ayurveda', emoji: '🌱', bg: 'bg-green-50' },
+  { id: 'other', label: 'Other', emoji: '➕', bg: 'bg-gray-50' },
+];
+
+
+
 const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
+  const mainContainerRef = useRef(null);
+  const [view, setView] = useState('specialties'); // 'specialties' | 'form'
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [userData, setUserData] = useState(null);
-  const [bookingFor, setBookingFor] = useState('self'); // State for self/someone toggle
+  const [bookingFor, setBookingFor] = useState('self');
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [dateError, setDateError] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Select a specialty — pre-fill reason and go to form
+  const handleSpecialtySelect = (specialty) => {
+    setAppointmentForm(prev => ({ ...prev, reason: specialty.label, category: specialty.id }));
+    setView('form');
+  };
 
   // Register sidebar state with Android back handler
   useEffect(() => {
     registerSidebarState(isMenuOpen, () => setIsMenuOpen(false));
+  }, [isMenuOpen]);
+
+  // Close sidebar when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isMenuOpen) {
+        // Check if click is inside sidebar or overlay
+        const isSidebarClick = event.target.closest('[data-sidebar="true"]') ||
+          event.target.closest('[data-sidebar-overlay="true"]');
+
+        // Only close if clicking outside both
+        if (!isSidebarClick) {
+          setIsMenuOpen(false);
+        }
+      }
+    };
+
+    if (isMenuOpen) {
+      document.addEventListener('click', handleClickOutside, true);
+      return () => {
+        document.removeEventListener('click', handleClickOutside, true);
+      };
+    }
   }, [isMenuOpen]);
 
   // Scroll locking when sidebar is open
@@ -49,6 +111,7 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
       document.body.style.width = 'unset';
       document.body.style.top = 'unset';
       document.body.style.touchAction = 'auto';
+      document.body.style.pointerEvents = 'auto';
     };
   }, [isMenuOpen]);
 
@@ -59,7 +122,7 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
       try {
         const parsedUser = JSON.parse(user);
         setUserData(parsedUser);
-        
+
         // Auto-populate form with user data
         setAppointmentForm({
           ...appointmentForm,
@@ -77,7 +140,7 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
     }
   }, []);
 
- 
+
 
   // Fetch doctors from backend
   useEffect(() => {
@@ -117,7 +180,7 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
   const handleDateChange = (e) => {
     const selectedDateValue = e.target.value;
     if (!selectedDateValue) {
-      setAppointmentForm({...appointmentForm, date: '', time: ''});
+      setAppointmentForm({ ...appointmentForm, date: '', time: '' });
       setDateError('');
       return;
     }
@@ -135,10 +198,10 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
 
     if (selectedDoctor && appointmentForm.opdType && !availableDays.includes(dayShort) && !availableDays.includes('daily')) {
       setDateError('This date is not available for the selected doctor and OPD type.');
-      setAppointmentForm({...appointmentForm, date: '', time: ''});
+      setAppointmentForm({ ...appointmentForm, date: '', time: '' });
     } else {
       setDateError('');
-      setAppointmentForm({...appointmentForm, date: selectedDateValue, time: ''});
+      setAppointmentForm({ ...appointmentForm, date: selectedDateValue, time: '' });
     }
   };
 
@@ -154,16 +217,16 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
     try {
       // Validate required fields
       const hasOpdTypes = selectedDoc && ((selectedDoc?.general_opd_days || selectedDoc?.general_opd) || (selectedDoc?.private_opd_days || selectedDoc?.private_opd));
-      
+
       // Validate phone number length
       if (appointmentForm.phone && appointmentForm.phone.length > 15) {
         setError('Phone number must not exceed 15 characters');
         setSubmitting(false);
         return;
       }
-      
-      if (!appointmentForm.patientName || !appointmentForm.phone || !appointmentForm.doctor || 
-          (hasOpdTypes && !appointmentForm.opdType) || !appointmentForm.date || !appointmentForm.time || !appointmentForm.reason) {
+
+      if (!appointmentForm.patientName || !appointmentForm.phone || !appointmentForm.doctor ||
+        (hasOpdTypes && !appointmentForm.opdType) || !appointmentForm.date || !appointmentForm.time || !appointmentForm.reason) {
         setError('Please fill in all required fields');
         setSubmitting(false);
         return;
@@ -190,10 +253,10 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
         user_type: userData?.type || '',
         user_id: userData?.[' S. No.'] || userData?.id || null,
         booking_for: appointmentForm.bookingFor || 'self',
-        patient_relationship: appointmentForm.bookingFor === 'someone' 
-          ? (appointmentForm.relationship === 'Other' 
-              ? (appointmentForm.relationshipText || 'Other')
-              : (appointmentForm.relationship || 'Other'))
+        patient_relationship: appointmentForm.bookingFor === 'someone'
+          ? (appointmentForm.relationship === 'Other'
+            ? (appointmentForm.relationshipText || 'Other')
+            : (appointmentForm.relationship || 'Other'))
           : 'Self'
       };
 
@@ -201,14 +264,14 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
 
       // Submit appointment
       const response = await bookAppointment(appointmentData);
-      
+
       console.log('✅ Appointment booked successfully:', response);
-      
+
       setSuccess(true);
-      
+
       // Show success message - This appears as a green banner at the top of the form
       console.log('✅ Success message displayed as green banner at top of form');
-      
+
       // Show alert popup - This appears as a browser alert dialog
       setTimeout(() => {
         alert('Appointment booked successfully! You will receive a confirmation message shortly.');
@@ -224,19 +287,24 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
   };
 
   return (
-    <div className="bg-white min-h-screen pb-10 relative">
+    <div
+      ref={mainContainerRef}
+      className={`bg-white min-h-screen pb-10 relative${isMenuOpen ? ' overflow-hidden max-h-screen' : ''}`}
+    >
       {/* Navbar */}
-      <div className="bg-white border-gray-200 shadow-sm border-b px-4 sm:px-6 py-5 flex items-center justify-between sticky top-0 z-50 mt-6 transition-all duration-300">
+      <div className="bg-white border-gray-200 shadow-sm border-b px-4 sm:px-6 py-5 flex items-center justify-between sticky top-0 z-50 mt-6 transition-all duration-300 pointer-events-auto">
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
+          className="p-2 rounded-xl hover:bg-gray-100 transition-colors pointer-events-auto"
         >
           {isMenuOpen ? <X className="h-6 w-6 text-gray-700" /> : <Menu className="h-6 w-6 text-gray-700" />}
         </button>
-        <h1 className="text-lg font-bold text-gray-800 transition-colors">Book Appointment</h1>
+        <h1 className="text-lg font-bold text-gray-800 transition-colors">
+          {view === 'specialties' ? 'Choose Speciality' : 'Book Appointment'}
+        </h1>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => onNavigate('home')}
+            onClick={() => view === 'form' ? setView('specialties') : onNavigate('home')}
             className="p-2 rounded-xl transition-colors flex items-center justify-center text-indigo-600 hover:bg-gray-100"
             title="Back"
           >
@@ -251,574 +319,610 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
         </div>
       </div>
 
-        <Sidebar
-          isOpen={isMenuOpen}
-          onClose={() => setIsMenuOpen(false)}
-          onNavigate={onNavigate}
-          currentPage="appointment"
-        />
-
-        {/* Header Section */}
-      <div className="bg-white px-6 pt-6 pb-4">
-        <div className="flex items-center gap-4">
-          <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
-            <Clock className="h-12 w-12 text-indigo-600" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Book Appointment</h1>
-            <p className="text-gray-500 text-sm font-medium">Book your Schedule your visit</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Error/Success Messages */}
-      {error && (
-        <div className="mx-6 mb-4 p-4 bg-red-50 border-2 border-red-200 rounded-2xl flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="text-red-800 text-sm font-semibold">{error}</p>
-          </div>
-        </div>
-      )}
-
-      {/* SUCCESS MESSAGE DISPLAY - Appears as green banner at top of form when appointment is booked */}
-      {success && (
-        <div className="mx-6 mb-4 p-4 bg-green-50 border-2 border-green-200 rounded-2xl">
-          <p className="text-green-800 text-sm font-semibold">✅ Appointment booked successfully!</p>
-        </div>
-      )}
-
-      {/* Booking For Toggle */}
-      <div className="mb-6 px-6">
-        <div className="flex bg-gray-100 p-1 rounded-2xl w-fit mx-auto">
-          <button
-            type="button"
-            className={`py-3 px-6 rounded-xl text-base font-semibold transition-all duration-300 ${
-              appointmentForm.bookingFor === 'self' 
-                ? 'bg-white text-indigo-600 shadow-md transform scale-105' 
-                : 'text-gray-600 hover:text-indigo-500 hover:bg-gray-200'
-            }`}
-            onClick={() => {
-              setAppointmentForm({
-                ...appointmentForm,
-                bookingFor: 'self',
-                patientName: userData?.['Name'] || userData?.name || '',
-                phone: (userData?.['Mobile'] || userData?.mobile || '').substring(0, 15),
-                email: userData?.['Email'] || userData?.email || '',
-                age: '',
-                gender: '',
-                time: '',
-                relationship: '',
-                relationshipText: '',
-                patientRelationship: 'Self'
-              });
-            }}
-          >
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              For Self
-            </div>
-          </button>
-          <button
-            type="button"
-            className={`py-3 px-6 rounded-xl text-base font-semibold transition-all duration-300 ${
-              appointmentForm.bookingFor === 'someone' 
-                ? 'bg-white text-indigo-600 shadow-md transform scale-105' 
-                : 'text-gray-600 hover:text-indigo-500 hover:bg-gray-200'
-            }`}
-            onClick={() => {
-              setAppointmentForm({
-                ...appointmentForm,
-                bookingFor: 'someone',
-                patientName: '',
-                phone: '',
-                email: '',
-                age: '',
-                gender: '',
-                time: '',
-                relationship: '',
-                relationshipText: '',
-                patientRelationship: ''
-              });
-            }}
-          >
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              For Someone Else
-            </div>
-          </button>
-        </div>
-      </div>
-
       <Sidebar
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
         onNavigate={onNavigate}
-        currentPage="appointment"
+        currentPage="appointments"
       />
 
-      {/* Appointment Form */}
-      <div className="px-4 py-2">
-        <form onSubmit={handleSubmit} className="space-y-6 max-w-md mx-auto px-2">
-          {/* Patient Name - Editable based on booking for */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
-              Patient Name <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <User className="h-5 w-5 text-gray-400" />
-              </div>
+      {/* ───────────── SPECIALTIES SELECTION PAGE ───────────── */}
+      {view === 'specialties' && (
+        <div className="bg-white min-h-screen pb-10">
+
+          {/* Top indigo header */}
+          <div className="bg-indigo-600 px-5 pt-4 pb-6">
+            <p className="text-indigo-100 text-sm mt-1">Find the right specialist for your concern</p>
+          </div>
+
+          {/* White card pulled up over blue header */}
+          <div className="bg-white rounded-t-3xl -mt-3 pt-5 px-4">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">All specialities</h3>
+
+            {/* Search input */}
+            <div className="mb-4">
               <input
-                type="text"
-                required
-                value={appointmentForm.patientName}
-                onChange={(e) => setAppointmentForm({...appointmentForm, patientName: e.target.value})}
-                placeholder="Enter patient's full name"
-                className={`block w-full pl-11 pr-4 py-3.5 border rounded-2xl placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-medium ${
-                  appointmentForm.bookingFor === 'self' ? 'bg-gray-100 border-gray-300 text-gray-700 cursor-not-allowed' : 'bg-white border-gray-200 text-gray-800 focus:bg-white'
-                }`}
-                readOnly={appointmentForm.bookingFor === 'self'}
+                type="search"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search specialties"
+                className="w-full px-4 py-3 rounded-2xl border border-gray-200 bg-gray-50 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
               />
+            </div>
+
+            {/* 4-column circular grid */}
+            <div className="grid grid-cols-4 gap-x-2 gap-y-5">
+              {SPECIALTIES.filter(sp => sp.label.toLowerCase().includes(searchTerm.trim().toLowerCase())).map((sp) => (
+                <button
+                  key={sp.id}
+                  onClick={() => handleSpecialtySelect(sp)}
+                  className="flex flex-col items-center gap-2 active:scale-95 transition-transform"
+                >
+                  {/* Circle emoji bubble */}
+                  <div className={`w-16 h-16 rounded-full ${sp.bg} flex items-center justify-center`}>
+                    <span style={{ fontSize: '2rem', lineHeight: 1 }}>{sp.emoji}</span>
+                  </div>
+                  {/* Label */}
+                  <p className="text-[11px] text-gray-700 font-medium text-center leading-tight">{sp.label}</p>
+                </button>
+
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ───────────── BOOKING FORM ───────────── */}
+      {view === 'form' && (
+        <div>
+          {/* Header Section */}
+          <div className="bg-white px-6 pt-6 pb-4">
+            <div className="flex items-center gap-4">
+              <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+                <Clock className="h-12 w-12 text-indigo-600" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-800">Book Appointment</h1>
+                <p className="text-gray-500 text-sm font-medium">Book your Schedule your visit</p>
+              </div>
             </div>
           </div>
 
-          {/* Phone Number - Editable based on booking for */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
-              Phone Number <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Phone className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="tel"
-                required
-                value={appointmentForm.phone}
-                onChange={(e) => setAppointmentForm({...appointmentForm, phone: e.target.value.substring(0, 15)})}
-                placeholder="Patient's phone number"
-                className={`block w-full pl-11 pr-4 py-3.5 border rounded-2xl placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-medium ${
-                  appointmentForm.bookingFor === 'self' ? 'bg-gray-100 border-gray-300 text-gray-700 cursor-not-allowed' : 'bg-white border-gray-200 text-gray-800 focus:bg-white'
-                }`}
-                readOnly={appointmentForm.bookingFor === 'self'}
-              />
-            </div>
-          </div>
-
-          {/* Email - Editable based on booking for */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
-              Email Address {appointmentForm.email ? '' : '(Optional)'}
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Mail className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="email"
-                value={appointmentForm.email || ''}
-                onChange={(e) => setAppointmentForm({...appointmentForm, email: e.target.value})}
-                placeholder="Patient's email address"
-                className={`block w-full pl-11 pr-4 py-3.5 border rounded-2xl placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-medium ${
-                  appointmentForm.bookingFor === 'self' && userData?.Email ? 'bg-gray-100 border-gray-300 text-gray-700' : 'bg-white border-gray-200 text-gray-800 focus:bg-white'
-                }`}
-                readOnly={appointmentForm.bookingFor === 'self' && !!userData?.Email}
-              />
-            </div>
-          </div>
-
-          {/* Relationship Field - Only shown when booking for someone else */}
-          {appointmentForm.bookingFor === 'someone' && (
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
-                Your Relationship to Patient <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-gray-400" />
-                </div>
-                {appointmentForm.relationship === 'Other' ? (
-                  <>
-                    <input
-                      type="text"
-                      required
-                      value={appointmentForm.relationshipText || ''}
-                      onChange={(e) => setAppointmentForm({...appointmentForm, relationshipText: e.target.value})}
-                      placeholder="Specify your relationship"
-                      className="block w-full pl-11 pr-4 py-3.5 bg-white border border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const selectedRelationship = appointmentForm.relationshipText || 'Other';
-                        setAppointmentForm({...appointmentForm, relationship: selectedRelationship, relationshipText: ''});
-                      }}
-                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-indigo-600 hover:text-indigo-800 text-sm font-medium"
-                    >
-                      Use
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <select
-                      required
-                      value={appointmentForm.relationship || ''}
-                      onChange={(e) => {
-                        if (e.target.value === 'Other') {
-                          setAppointmentForm({...appointmentForm, relationship: 'Other', relationshipText: ''});
-                        } else {
-                          setAppointmentForm({...appointmentForm, relationship: e.target.value});
-                        }
-                      }}
-                      className="block w-full pl-11 pr-10 py-3.5 bg-white border border-gray-200 rounded-2xl text-gray-800 appearance-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium"
-                    >
-                      <option value="">Select relationship</option>
-                      <option value="Father">Father</option>
-                      <option value="Mother">Mother</option>
-                      <option value="Son">Son</option>
-                      <option value="Daughter">Daughter</option>
-                      <option value="Spouse">Spouse</option>
-                      <option value="Brother">Brother</option>
-                      <option value="Sister">Sister</option>
-                      <option value="Grandfather">Grandfather</option>
-                      <option value="Grandmother">Grandmother</option>
-                      <option value="Uncle">Uncle</option>
-                      <option value="Aunt">Aunt</option>
-                      <option value="Cousin">Cousin</option>
-                      <option value="Relative">Relative</option>
-                      <option value="Friend">Friend</option>
-                      <option value="Guardian">Guardian</option>
-                      <option value="Other">Other</option>
-                    </select>
-                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                      <ChevronRight className="h-5 w-5 text-gray-400 rotate-90" />
-                    </div>
-                  </>
-                )}
+          {/* Error/Success Messages */}
+          {error && (
+            <div className="mx-6 mb-4 p-4 bg-red-50 border-2 border-red-200 rounded-2xl flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-red-800 text-sm font-semibold">{error}</p>
               </div>
             </div>
           )}
 
-          {/* Select Doctor - Fetched from database */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
-              Select Doctor <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Stethoscope className="h-5 w-5 text-gray-400" />
-              </div>
-              <select
-                required
-                name="doctor"
-                value={appointmentForm.doctor}
-                onChange={handleDoctorChange}
-                disabled={loading}
-                className="block w-full pl-11 pr-10 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 appearance-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <option key="default-doctor" value="">
-                  {loading ? 'Loading doctors...' : 'Choose a doctor'}
-                </option>
-                {doctors.map((doc, index) => (
-                  <option key={`${doc.id || doc.original_id || doc['S. No.'] || index}`} value={String(doc.original_id || doc.id || doc['S. No.'] || '')}>
-                    {doc.consultant_name} - {doc.department || 'General'}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                <ChevronRight className="h-5 w-5 text-gray-400 rotate-90" />
-              </div>
+          {/* SUCCESS MESSAGE DISPLAY - Appears as green banner at top of form when appointment is booked */}
+          {success && (
+            <div className="mx-6 mb-4 p-4 bg-green-50 border-2 border-green-200 rounded-2xl">
+              <p className="text-green-800 text-sm font-semibold">✅ Appointment booked successfully!</p>
             </div>
-            {selectedDoctor && (
-              <div className="mt-2 p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
-                <p className="text-xs font-semibold text-indigo-900">
-                  {selectedDoctor.designation || selectedDoctor.specialization || 'Consultant'}
-                </p>
-                <p className="text-xs text-indigo-700 mt-1">
-                  <strong>Department:</strong> {selectedDoctor.department || selectedDoctor['Company Name'] || 'N/A'}
-                </p>
-                <div className="mt-2 space-y-2">
-                  {(selectedDoctor?.general_opd_days || selectedDoctor?.general_opd) && (
-                    <div className="text-xs">
-                      <strong className="text-indigo-900">General OPD:</strong>
-                      <p className="text-indigo-700 mt-1">{selectedDoctor?.general_opd_days || selectedDoctor?.general_opd || 'N/A'}</p>
+          )}
+
+          {/* Booking For Toggle */}
+          <div className="mb-6 px-6">
+            <div className="flex bg-gray-100 p-1 rounded-2xl w-fit mx-auto">
+              <button
+                type="button"
+                className={`py-3 px-6 rounded-xl text-base font-semibold transition-all duration-300 ${appointmentForm.bookingFor === 'self'
+                  ? 'bg-white text-indigo-600 shadow-md transform scale-105'
+                  : 'text-gray-600 hover:text-indigo-500 hover:bg-gray-200'
+                  }`}
+                onClick={() => {
+                  setAppointmentForm({
+                    ...appointmentForm,
+                    bookingFor: 'self',
+                    patientName: userData?.['Name'] || userData?.name || '',
+                    phone: (userData?.['Mobile'] || userData?.mobile || '').substring(0, 15),
+                    email: userData?.['Email'] || userData?.email || '',
+                    age: '',
+                    gender: '',
+                    time: '',
+                    relationship: '',
+                    relationshipText: '',
+                    patientRelationship: 'Self'
+                  });
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  For Self
+                </div>
+              </button>
+              <button
+                type="button"
+                className={`py-3 px-6 rounded-xl text-base font-semibold transition-all duration-300 ${appointmentForm.bookingFor === 'someone'
+                  ? 'bg-white text-indigo-600 shadow-md transform scale-105'
+                  : 'text-gray-600 hover:text-indigo-500 hover:bg-gray-200'
+                  }`}
+                onClick={() => {
+                  setAppointmentForm({
+                    ...appointmentForm,
+                    bookingFor: 'someone',
+                    patientName: '',
+                    phone: '',
+                    email: '',
+                    age: '',
+                    gender: '',
+                    time: '',
+                    relationship: '',
+                    relationshipText: '',
+                    patientRelationship: ''
+                  });
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  For Someone Else
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Appointment Form */}
+          <div className="px-4 py-2">
+            <form onSubmit={handleSubmit} className="space-y-6 max-w-md mx-auto px-2">
+              {/* Patient Name - Editable based on booking for */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
+                  Patient Name <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <User className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={appointmentForm.patientName}
+                    onChange={(e) => setAppointmentForm({ ...appointmentForm, patientName: e.target.value })}
+                    placeholder="Enter patient's full name"
+                    className={`block w-full pl-11 pr-4 py-3.5 border rounded-2xl placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-medium ${appointmentForm.bookingFor === 'self' ? 'bg-gray-100 border-gray-300 text-gray-700 cursor-not-allowed' : 'bg-white border-gray-200 text-gray-800 focus:bg-white'
+                      }`}
+                    readOnly={appointmentForm.bookingFor === 'self'}
+                  />
+                </div>
+              </div>
+
+              {/* Phone Number - Editable based on booking for */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
+                  Phone Number <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Phone className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="tel"
+                    required
+                    value={appointmentForm.phone}
+                    onChange={(e) => setAppointmentForm({ ...appointmentForm, phone: e.target.value.substring(0, 15) })}
+                    placeholder="Patient's phone number"
+                    className={`block w-full pl-11 pr-4 py-3.5 border rounded-2xl placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-medium ${appointmentForm.bookingFor === 'self' ? 'bg-gray-100 border-gray-300 text-gray-700 cursor-not-allowed' : 'bg-white border-gray-200 text-gray-800 focus:bg-white'
+                      }`}
+                    readOnly={appointmentForm.bookingFor === 'self'}
+                  />
+                </div>
+              </div>
+
+              {/* Email - Editable based on booking for */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
+                  Email Address {appointmentForm.email ? '' : '(Optional)'}
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Mail className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="email"
+                    value={appointmentForm.email || ''}
+                    onChange={(e) => setAppointmentForm({ ...appointmentForm, email: e.target.value })}
+                    placeholder="Patient's email address"
+                    className={`block w-full pl-11 pr-4 py-3.5 border rounded-2xl placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-medium ${appointmentForm.bookingFor === 'self' && userData?.Email ? 'bg-gray-100 border-gray-300 text-gray-700' : 'bg-white border-gray-200 text-gray-800 focus:bg-white'
+                      }`}
+                    readOnly={appointmentForm.bookingFor === 'self' && !!userData?.Email}
+                  />
+                </div>
+              </div>
+
+              {/* Relationship Field - Only shown when booking for someone else */}
+              {appointmentForm.bookingFor === 'someone' && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
+                    Your Relationship to Patient <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <User className="h-5 w-5 text-gray-400" />
                     </div>
+                    {appointmentForm.relationship === 'Other' ? (
+                      <>
+                        <input
+                          type="text"
+                          required
+                          value={appointmentForm.relationshipText || ''}
+                          onChange={(e) => setAppointmentForm({ ...appointmentForm, relationshipText: e.target.value })}
+                          placeholder="Specify your relationship"
+                          className="block w-full pl-11 pr-4 py-3.5 bg-white border border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const selectedRelationship = appointmentForm.relationshipText || 'Other';
+                            setAppointmentForm({ ...appointmentForm, relationship: selectedRelationship, relationshipText: '' });
+                          }}
+                          className="absolute inset-y-0 right-0 pr-4 flex items-center text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                        >
+                          Use
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <select
+                          required
+                          value={appointmentForm.relationship || ''}
+                          onChange={(e) => {
+                            if (e.target.value === 'Other') {
+                              setAppointmentForm({ ...appointmentForm, relationship: 'Other', relationshipText: '' });
+                            } else {
+                              setAppointmentForm({ ...appointmentForm, relationship: e.target.value });
+                            }
+                          }}
+                          className="block w-full pl-11 pr-10 py-3.5 bg-white border border-gray-200 rounded-2xl text-gray-800 appearance-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium"
+                        >
+                          <option value="">Select relationship</option>
+                          <option value="Father">Father</option>
+                          <option value="Mother">Mother</option>
+                          <option value="Son">Son</option>
+                          <option value="Daughter">Daughter</option>
+                          <option value="Spouse">Spouse</option>
+                          <option value="Brother">Brother</option>
+                          <option value="Sister">Sister</option>
+                          <option value="Grandfather">Grandfather</option>
+                          <option value="Grandmother">Grandmother</option>
+                          <option value="Uncle">Uncle</option>
+                          <option value="Aunt">Aunt</option>
+                          <option value="Cousin">Cousin</option>
+                          <option value="Relative">Relative</option>
+                          <option value="Friend">Friend</option>
+                          <option value="Guardian">Guardian</option>
+                          <option value="Other">Other</option>
+                        </select>
+                        <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                          <ChevronRight className="h-5 w-5 text-gray-400 rotate-90" />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Select Doctor - Fetched from database */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
+                  Select Doctor <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Stethoscope className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <select
+                    required
+                    name="doctor"
+                    value={appointmentForm.doctor}
+                    onChange={handleDoctorChange}
+                    disabled={loading}
+                    className="block w-full pl-11 pr-10 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 appearance-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <option key="default-doctor" value="">
+                      {loading ? 'Loading doctors...' : 'Choose a doctor'}
+                    </option>
+                    {doctors.map((doc, index) => (
+                      <option key={`${doc.id || doc.original_id || doc['S. No.'] || index}`} value={String(doc.original_id || doc.id || doc['S. No.'] || '')}>
+                        {doc.consultant_name} - {doc.department || 'General'}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                    <ChevronRight className="h-5 w-5 text-gray-400 rotate-90" />
+                  </div>
+                </div>
+                {selectedDoctor && (
+                  <div className="mt-2 p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
+                    <p className="text-xs font-semibold text-indigo-900">
+                      {selectedDoctor.designation || selectedDoctor.specialization || 'Consultant'}
+                    </p>
+                    <p className="text-xs text-indigo-700 mt-1">
+                      <strong>Department:</strong> {selectedDoctor.department || selectedDoctor['Company Name'] || 'N/A'}
+                    </p>
+                    <div className="mt-2 space-y-2">
+                      {(selectedDoctor?.general_opd_days || selectedDoctor?.general_opd) && (
+                        <div className="text-xs">
+                          <strong className="text-indigo-900">General OPD:</strong>
+                          <p className="text-indigo-700 mt-1">{selectedDoctor?.general_opd_days || selectedDoctor?.general_opd || 'N/A'}</p>
+                        </div>
+                      )}
+                      {(selectedDoctor?.private_opd_days || selectedDoctor?.private_opd) && (
+                        <div className="text-xs">
+                          <strong className="text-indigo-900">Private OPD:</strong>
+                          <p className="text-indigo-700 mt-1">{selectedDoctor?.private_opd_days || selectedDoctor?.private_opd || 'N/A'}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* OPD Type Selection */}
+              {selectedDoctor && ((selectedDoctor?.general_opd_days || selectedDoctor?.general_opd) || (selectedDoctor?.private_opd_days || selectedDoctor?.private_opd)) && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
+                    Available OPD Types <span className="text-red-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-1 gap-3">
+                    {(selectedDoctor?.general_opd_days || selectedDoctor?.general_opd) && (
+                      <div
+                        onClick={() => {
+                          setAppointmentForm({ ...appointmentForm, opdType: 'General OPD' });
+                          setDateError('');
+                        }}
+                        className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${appointmentForm.opdType === 'General OPD'
+                          ? 'border-indigo-500 bg-indigo-50'
+                          : 'border-gray-200 bg-white hover:border-indigo-300'
+                          }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="font-semibold text-gray-900">General OPD</h4>
+                            <p className="text-sm text-gray-600 mt-1">{selectedDoctor?.general_opd_days || selectedDoctor?.general_opd}</p>
+                          </div>
+                          <div className={`w-4 h-4 rounded-full border-2 ${appointmentForm.opdType === 'General OPD'
+                            ? 'border-indigo-500 bg-indigo-500'
+                            : 'border-gray-300'
+                            }`}>
+                            {appointmentForm.opdType === 'General OPD' && (
+                              <div className="w-full h-full rounded-full bg-white scale-50"></div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {(selectedDoctor?.private_opd_days || selectedDoctor?.private_opd) && (
+                      <div
+                        onClick={() => {
+                          setAppointmentForm({ ...appointmentForm, opdType: 'Private OPD' });
+                          setDateError('');
+                        }}
+                        className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${appointmentForm.opdType === 'Private OPD'
+                          ? 'border-indigo-500 bg-indigo-50'
+                          : 'border-gray-200 bg-white hover:border-indigo-300'
+                          }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="font-semibold text-gray-900">Private OPD</h4>
+                            <p className="text-sm text-gray-600 mt-1">{selectedDoctor?.private_opd_days || selectedDoctor?.private_opd}</p>
+                          </div>
+                          <div className={`w-4 h-4 rounded-full border-2 ${appointmentForm.opdType === 'Private OPD'
+                            ? 'border-indigo-500 bg-indigo-500'
+                            : 'border-gray-300'
+                            }`}>
+                            {appointmentForm.opdType === 'Private OPD' && (
+                              <div className="w-full h-full rounded-full bg-white scale-50"></div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* OPD Type (Hidden Select for Form Validation) */}
+              <div className="hidden">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
+                  OPD Type <span className="text-red-500">*</span>
+                </label>
+                <select
+                  required={selectedDoctor && ((selectedDoctor?.general_opd_days || selectedDoctor?.general_opd) || (selectedDoctor?.private_opd_days || selectedDoctor?.private_opd))}
+                  name="opdType"
+                  value={appointmentForm.opdType || ''}
+                  onChange={(e) => {
+                    setAppointmentForm({ ...appointmentForm, opdType: e.target.value });
+                    setDateError('');
+                  }}
+                  disabled={!selectedDoctor}
+                  className="block w-full pl-11 pr-10 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 appearance-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option key="default-opd-type" value="">
+                    {!selectedDoctor ? 'Select doctor first' : 'Select OPD type'}
+                  </option>
+                  {(selectedDoctor?.general_opd_days || selectedDoctor?.general_opd) && (
+                    <option key="general-opd" value="General OPD">General OPD ({selectedDoctor?.general_opd_days || selectedDoctor?.general_opd})</option>
                   )}
                   {(selectedDoctor?.private_opd_days || selectedDoctor?.private_opd) && (
-                    <div className="text-xs">
-                      <strong className="text-indigo-900">Private OPD:</strong>
-                      <p className="text-indigo-700 mt-1">{selectedDoctor?.private_opd_days || selectedDoctor?.private_opd || 'N/A'}</p>
-                    </div>
+                    <option key="private-opd" value="Private OPD">Private OPD ({selectedDoctor?.private_opd_days || selectedDoctor?.private_opd})</option>
                   )}
+                </select>
+              </div>
+
+              {/* Date */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
+                  Date <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Calendar className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="date"
+                    required
+                    min={new Date().toISOString().split('T')[0]}
+                    value={appointmentForm.date}
+                    onChange={handleDateChange}
+                    className="block w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium"
+                  />
+                </div>
+                {dateError && (
+                  <p className="text-red-600 text-xs mt-1 ml-1">{dateError}</p>
+                )}
+              </div>
+
+              {/* Time */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
+                  Time <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Clock className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="time"
+                    required
+                    value={appointmentForm.time || ''}
+                    onChange={(e) => setAppointmentForm({ ...appointmentForm, time: e.target.value })}
+                    className="block w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium"
+                  />
                 </div>
               </div>
-            )}
-          </div>
 
-          {/* OPD Type Selection */}
-          {selectedDoctor && ((selectedDoctor?.general_opd_days || selectedDoctor?.general_opd) || (selectedDoctor?.private_opd_days || selectedDoctor?.private_opd)) && (
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
-                Available OPD Types <span className="text-red-500">*</span>
-              </label>
-              <div className="grid grid-cols-1 gap-3">
-                {(selectedDoctor?.general_opd_days || selectedDoctor?.general_opd) && (
-                  <div 
-                    onClick={() => {
-                      setAppointmentForm({...appointmentForm, opdType: 'General OPD'});
-                      setDateError('');
-                    }}
-                    className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                      appointmentForm.opdType === 'General OPD' 
-                        ? 'border-indigo-500 bg-indigo-50' 
-                        : 'border-gray-200 bg-white hover:border-indigo-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-semibold text-gray-900">General OPD</h4>
-                        <p className="text-sm text-gray-600 mt-1">{selectedDoctor?.general_opd_days || selectedDoctor?.general_opd}</p>
-                      </div>
-                      <div className={`w-4 h-4 rounded-full border-2 ${
-                        appointmentForm.opdType === 'General OPD' 
-                          ? 'border-indigo-500 bg-indigo-500' 
-                          : 'border-gray-300'
-                      }`}>
-                        {appointmentForm.opdType === 'General OPD' && (
-                          <div className="w-full h-full rounded-full bg-white scale-50"></div>
-                        )}
-                      </div>
-                    </div>
+              {/* Age */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Age</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <User className="h-5 w-5 text-gray-400" />
                   </div>
-                )}
-                {(selectedDoctor?.private_opd_days || selectedDoctor?.private_opd) && (
-                  <div 
-                    onClick={() => {
-                      setAppointmentForm({...appointmentForm, opdType: 'Private OPD'});
-                      setDateError('');
-                    }}
-                    className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                      appointmentForm.opdType === 'Private OPD' 
-                        ? 'border-indigo-500 bg-indigo-50' 
-                        : 'border-gray-200 bg-white hover:border-indigo-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-semibold text-gray-900">Private OPD</h4>
-                        <p className="text-sm text-gray-600 mt-1">{selectedDoctor?.private_opd_days || selectedDoctor?.private_opd}</p>
-                      </div>
-                      <div className={`w-4 h-4 rounded-full border-2 ${
-                        appointmentForm.opdType === 'Private OPD' 
-                          ? 'border-indigo-500 bg-indigo-500' 
-                          : 'border-gray-300'
-                      }`}>
-                        {appointmentForm.opdType === 'Private OPD' && (
-                          <div className="w-full h-full rounded-full bg-white scale-50"></div>
-                        )}
-                      </div>
-                    </div>
+                  <input
+                    type="number"
+                    min="1"
+                    max="120"
+                    value={appointmentForm.age || ''}
+                    onChange={(e) => setAppointmentForm({ ...appointmentForm, age: e.target.value })}
+                    placeholder="Enter age"
+                    className="block w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium"
+                  />
+                </div>
+              </div>
+
+              {/* Gender */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Gender</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <User className="h-5 w-5 text-gray-400" />
                   </div>
-                )}
+                  <select
+                    name="gender"
+                    value={appointmentForm.gender || ''}
+                    onChange={(e) => setAppointmentForm({ ...appointmentForm, gender: e.target.value })}
+                    className="block w-full pl-11 pr-10 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 appearance-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium"
+                  >
+                    <option value="">Select gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                    <ChevronRight className="h-5 w-5 text-gray-400 rotate-90" />
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
 
-          {/* OPD Type (Hidden Select for Form Validation) */}
-          <div className="hidden">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
-              OPD Type <span className="text-red-500">*</span>
-            </label>
-            <select
-              required={selectedDoctor && ((selectedDoctor?.general_opd_days || selectedDoctor?.general_opd) || (selectedDoctor?.private_opd_days || selectedDoctor?.private_opd))}
-              name="opdType"
-              value={appointmentForm.opdType || ''}
-              onChange={(e) => {
-                setAppointmentForm({...appointmentForm, opdType: e.target.value});
-                setDateError('');
-              }}
-              disabled={!selectedDoctor}
-              className="block w-full pl-11 pr-10 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 appearance-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <option key="default-opd-type" value="">
-                {!selectedDoctor ? 'Select doctor first' : 'Select OPD type'}
-              </option>
-              {(selectedDoctor?.general_opd_days || selectedDoctor?.general_opd) && (
-                <option key="general-opd" value="General OPD">General OPD ({selectedDoctor?.general_opd_days || selectedDoctor?.general_opd})</option>
-              )}
-              {(selectedDoctor?.private_opd_days || selectedDoctor?.private_opd) && (
-                <option key="private-opd" value="Private OPD">Private OPD ({selectedDoctor?.private_opd_days || selectedDoctor?.private_opd})</option>
-              )}
-            </select>
-          </div>
-
-          {/* Date */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
-              Date <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Calendar className="h-5 w-5 text-gray-400" />
+              {/* Appointment Type */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Appointment Type</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Calendar className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <select
+                    name="appointmentType"
+                    value={appointmentForm.appointmentType || 'General Consultation'}
+                    onChange={(e) => setAppointmentForm({ ...appointmentForm, appointmentType: e.target.value })}
+                    className="block w-full pl-11 pr-10 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 appearance-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium"
+                  >
+                    <option value="General Consultation">General Consultation</option>
+                    <option value="Follow-up">Follow-up</option>
+                    <option value="Emergency">Emergency</option>
+                    <option value="Routine Checkup">Routine Checkup</option>
+                    <option value="Specialist Consultation">Specialist Consultation</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                    <ChevronRight className="h-5 w-5 text-gray-400 rotate-90" />
+                  </div>
+                </div>
               </div>
-              <input
-                type="date"
-                required
-                min={new Date().toISOString().split('T')[0]}
-                value={appointmentForm.date}
-                onChange={handleDateChange}
-                className="block w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium"
-              />
-            </div>
-            {dateError && (
-              <p className="text-red-600 text-xs mt-1 ml-1">{dateError}</p>
-            )}
-          </div>
 
-          {/* Time */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
-              Time <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Clock className="h-5 w-5 text-gray-400" />
+              {/* Reason for Visit */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
+                  Reason for Visit <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  required
+                  value={appointmentForm.reason}
+                  onChange={(e) => setAppointmentForm({ ...appointmentForm, reason: e.target.value })}
+                  placeholder="Briefly describe your symptoms or reason for visit..."
+                  rows="3"
+                  className="block w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium resize-none"
+                />
               </div>
-              <input
-                type="time"
-                required
-                value={appointmentForm.time || ''}
-                onChange={(e) => setAppointmentForm({...appointmentForm, time: e.target.value})}
-                className="block w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium"
-              />
-            </div>
-          </div>
 
-          {/* Age */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Age</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <User className="h-5 w-5 text-gray-400" />
+              {/* Medical History */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
+                  Previous Medical History (Optional)
+                </label>
+                <textarea
+                  value={appointmentForm.medicalHistory || ''}
+                  onChange={(e) => setAppointmentForm({ ...appointmentForm, medicalHistory: e.target.value })}
+                  placeholder="Any previous medical conditions, allergies, or medications..."
+                  rows="2"
+                  className="block w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium resize-none"
+                />
               </div>
-              <input
-                type="number"
-                min="1"
-                max="120"
-                value={appointmentForm.age || ''}
-                onChange={(e) => setAppointmentForm({...appointmentForm, age: e.target.value})}
-                placeholder="Enter age"
-                className="block w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium"
-              />
-            </div>
-          </div>
 
-          {/* Gender */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Gender</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <User className="h-5 w-5 text-gray-400" />
-              </div>
-              <select
-                name="gender"
-                value={appointmentForm.gender || ''}
-                onChange={(e) => setAppointmentForm({...appointmentForm, gender: e.target.value})}
-                className="block w-full pl-11 pr-10 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 appearance-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium"
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full mt-4 py-4 bg-indigo-600 text-white rounded-2xl font-bold text-base shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <option value="">Select gender</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
-              </select>
-              <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                <ChevronRight className="h-5 w-5 text-gray-400 rotate-90" />
-              </div>
-            </div>
+                {submitting ? 'Booking Appointment...' : 'Confirm Appointment'}
+              </button>
+            </form>
           </div>
 
-          {/* Appointment Type */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Appointment Type</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Calendar className="h-5 w-5 text-gray-400" />
-              </div>
-              <select
-                name="appointmentType"
-                value={appointmentForm.appointmentType || 'General Consultation'}
-                onChange={(e) => setAppointmentForm({...appointmentForm, appointmentType: e.target.value})}
-                className="block w-full pl-11 pr-10 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 appearance-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium"
+          {/* Footer */}
+          <footer className="mt-auto py-4 px-6 bg-gray-50 border-t border-gray-200">
+            <div className="text-center">
+              <button
+                onClick={() => {
+                  console.log('Navigating to developers page from appointments');
+                  onNavigate('developers');
+                }}
+                className="text-xs text-gray-500 hover:text-indigo-600 font-medium transition-colors"
               >
-                <option value="General Consultation">General Consultation</option>
-                <option value="Follow-up">Follow-up</option>
-                <option value="Emergency">Emergency</option>
-                <option value="Routine Checkup">Routine Checkup</option>
-                <option value="Specialist Consultation">Specialist Consultation</option>
-              </select>
-              <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                <ChevronRight className="h-5 w-5 text-gray-400 rotate-90" />
-              </div>
+                Powered by Developers
+              </button>
             </div>
-          </div>
-
-          {/* Reason for Visit */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
-              Reason for Visit <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              required
-              value={appointmentForm.reason}
-              onChange={(e) => setAppointmentForm({...appointmentForm, reason: e.target.value})}
-              placeholder="Briefly describe your symptoms or reason for visit..."
-              rows="3"
-              className="block w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium resize-none"
-            />
-          </div>
-
-          {/* Medical History */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">
-              Previous Medical History (Optional)
-            </label>
-            <textarea
-              value={appointmentForm.medicalHistory || ''}
-              onChange={(e) => setAppointmentForm({...appointmentForm, medicalHistory: e.target.value})}
-              placeholder="Any previous medical conditions, allergies, or medications..."
-              rows="2"
-              className="block w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-sm font-medium resize-none"
-            />
-          </div>
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full mt-4 py-4 bg-indigo-600 text-white rounded-2xl font-bold text-base shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {submitting ? 'Booking Appointment...' : 'Confirm Appointment'}
-          </button>
-        </form>
-      </div>
-
-      {/* Footer */}
-      <footer className="mt-auto py-4 px-6 bg-gray-50 border-t border-gray-200">
-        <div className="text-center">
-          <button 
-            onClick={() => {
-              console.log('Navigating to developers page from appointments');
-              onNavigate('developers');
-            }}
-            className="text-xs text-gray-500 hover:text-indigo-600 font-medium transition-colors"
-          >
-            Powered by Developers
-          </button>
+          </footer>
         </div>
-      </footer>
+      )}
     </div>
   );
 };
 
 export default Appointments;
+

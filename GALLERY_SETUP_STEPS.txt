@@ -1,0 +1,78 @@
+# 🚀 Complete Gallery Setup - 2 Steps
+
+## ⚠️ Error: Table Not Created
+
+You're seeing a 404 error because the `gallery_photos` table doesn't exist in your Supabase project yet.
+
+**Supabase Project Details:**
+- URL: `zcbjiozbymrymrhovlgm.supabase.co` ✅ (Your project)
+- Database: PostgreSQL ✅
+
+---
+
+## 🔧 Step 1: Create the Table in Supabase
+
+1. **Open Supabase Dashboard**: https://app.supabase.com
+
+2. **Go to SQL Editor**
+   - Click "SQL Editor" in left sidebar
+   - Click "+ New Query"
+
+3. **Copy & Paste the Script**
+   - Open file: `backend/SETUP_GALLERY_TABLE.sql`
+   - Copy entire script
+   - Paste into Supabase SQL Editor
+   - Click "Run" button (▶️)
+
+4. **Verify Success** ✅
+   - You should see message: "Execute succeeded"
+   - Go to "Tables" in left sidebar
+   - You should see `gallery_photos` table
+
+---
+
+## 🪣 Step 2: Create Storage Bucket
+
+1. **Go to Storage** (in Supabase dashboard)
+2. **Click "Create a new bucket"**
+3. **Bucket Name**: `gallery`
+4. **Make it PUBLIC**: ✅ Check "Public bucket"
+5. **Click Create**
+
+---
+
+## ✅ Done!
+
+Now your app can:
+- ✅ Upload photos
+- ✅ Save metadata
+- ✅ Display gallery
+
+---
+
+## 🎯 Next: Upload Some Test Photos
+
+1. Open the app → Gallery page
+2. Click the **Upload** button (📤)
+3. Select some images
+4. Photos will appear in the gallery!
+
+---
+
+## 🐛 Troubleshooting
+
+**Still seeing 404?**
+- ✅ Confirm table exists in Supabase
+- ✅ Confirm bucket name is exactly `gallery`
+- ✅ Confirm bucket is PUBLIC (not private)
+- ✅ Hard refresh browser (Ctrl+Shift+R)
+
+**Images still not showing?**
+- Check browser console (F12)
+- Should see uploaded photos in Supabase > gallery_photos table
+- Should see files in Supabase > Storage > gallery bucket
+
+---
+
+**Time needed:** ~5 minutes  
+**Status:** ✨ Ready to go!

@@ -1,10 +1,21 @@
 import { supabase } from '../config/supabase.js';
 
+// ─── Helper: today's date in IST ───────────────────────────────────────────
+const getTodayIST = () => {
+  const now = new Date();
+  // UTC+5:30
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const istDate = new Date(now.getTime() + istOffset);
+  const mm = String(istDate.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(istDate.getUTCDate()).padStart(2, '0');
+  return { month: mm, day: dd, year: String(istDate.getUTCFullYear()) };
+};
+
 // Get user notifications
 export const getNotifications = async (req, res) => {
   try {
     const userId = req.headers['user-id'];
-    
+
     if (!userId) {
       return res.status(400).json({ success: false, message: 'User ID is required' });
     }
@@ -69,10 +80,10 @@ export const getNotifications = async (req, res) => {
           .map(ref => ref.user_phone || ref.user_id)
           .filter(id => id && id !== userId) // Exclude already matched userId
       )];
-      
+
       if (referralUserIds.length > 0) {
         console.log(`🔗 Found ${referralUserIds.length} referral user ID(s) for phone ${userId}`);
-        
+
         // Fetch notifications where user_id matches any of these referral user IDs
         const { data: referralNotifications, error: refNotifError } = await supabase
           .from('notifications')
@@ -89,7 +100,7 @@ export const getNotifications = async (req, res) => {
     }
 
     // Remove duplicates based on notification id
-    const uniqueNotifications = allNotifications.filter((notification, index, self) => 
+    const uniqueNotifications = allNotifications.filter((notification, index, self) =>
       index === self.findIndex(n => n.id === notification.id)
     );
 
@@ -101,7 +112,7 @@ export const getNotifications = async (req, res) => {
     });
 
     console.log(`✅ Returning ${uniqueNotifications.length} total unique notifications`);
-    
+
     res.json({ success: true, data: uniqueNotifications });
   } catch (error) {
     console.error('Error fetching notifications:', error);
@@ -181,7 +192,7 @@ export const markAllAsRead = async (req, res) => {
 
     if (!appointmentError && appointments && appointments.length > 0) {
       const patientNames = [...new Set(appointments.map(apt => apt.patient_name.trim()))];
-      
+
       if (patientNames.length > 0) {
         const { data: nameNotifications, error: nameError } = await supabase
           .from('notifications')
@@ -209,7 +220,7 @@ export const markAllAsRead = async (req, res) => {
           .map(ref => ref.user_phone || ref.user_id)
           .filter(id => id && id !== userId)
       )];
-      
+
       if (referralUserIds.length > 0) {
         const { data: referralNotifications, error: refNotifError } = await supabase
           .from('notifications')
@@ -242,6 +253,102 @@ export const markAllAsRead = async (req, res) => {
     res.json({ success: true, message: `Marked ${uniqueNotificationIds.length} notifications as read` });
   } catch (error) {
     console.error('Error marking all notifications as read:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// ─── Check & create birthday notifications ──────────────────────────────────
+export const checkBirthdayNotifications = async (req, res) => {
+  try {
+    const userId = req.headers['user-id'];
+
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'User ID is required' });
+    }
+
+    const { month, day, year } = getTodayIST();
+    const todayStr = `${year}-${month}-${day}`; // e.g. 2026-02-24
+
+    console.log(`🎂 Checking birthday for user ${userId} on ${todayStr}`);
+
+    // 1. Find the user's profile by mobile number
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('name, dob, mobile, user_identifier')
+      .or(`mobile.eq.${userId},user_identifier.eq.${userId}`)
+      .limit(1)
+      .single();
+
+    if (profileError || !profile) {
+      console.log(`ℹ️ No profile found for user ${userId}`);
+      return res.json({ success: true, birthdayToday: false });
+    }
+
+    if (!profile.dob) {
+      return res.json({ success: true, birthdayToday: false });
+    }
+
+    // 2. Extract month+day from DOB (format: YYYY-MM-DD)
+    const dobParts = profile.dob.split('-');
+    if (dobParts.length < 3) {
+      return res.json({ success: true, birthdayToday: false });
+    }
+    const dobMonth = dobParts[1]; // MM
+    const dobDay = dobParts[2].substring(0, 2); // DD (trim time if any)
+
+    const isBirthday = dobMonth === month && dobDay === day;
+
+    if (!isBirthday) {
+      return res.json({ success: true, birthdayToday: false });
+    }
+
+    const userName = profile.name || 'Member';
+    console.log(`🎉 Birthday match! User: ${userName}`);
+
+    // 3. Check if birthday notification already sent today
+    const { data: existing, error: checkError } = await supabase
+      .from('notifications')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('type', 'birthday')
+      .gte('created_at', `${todayStr}T00:00:00.000Z`)
+      .limit(1);
+
+    if (!checkError && existing && existing.length > 0) {
+      console.log(`ℹ️ Birthday notification already sent today to ${userId}`);
+      return res.json({ success: true, birthdayToday: true, alreadySent: true, name: userName });
+    }
+
+    // 4. Insert birthday notification into notifications table
+    const birthdayMessage = `🎂 Maharaja Agrasen Samiti ki taraf se aapko janamdin ki hardik shubhkamnayein, ${userName} ji! Aapka yeh din bahut khaas ho! 🎉🎊`;
+
+    const { error: insertError } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: userId,
+        title: '🎂 Happy Birthday!',
+        message: birthdayMessage,
+        type: 'birthday',
+        is_read: false,
+        created_at: new Date().toISOString(),
+      });
+
+    if (insertError) {
+      console.error('Error inserting birthday notification:', insertError);
+      // Still return birthdayToday: true so app can show local notification
+    } else {
+      console.log(`✅ Birthday notification inserted for ${userName} (${userId})`);
+    }
+
+    return res.json({
+      success: true,
+      birthdayToday: true,
+      alreadySent: false,
+      name: userName,
+      message: birthdayMessage,
+    });
+  } catch (error) {
+    console.error('Error checking birthday notifications:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

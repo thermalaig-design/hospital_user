@@ -77,6 +77,9 @@ const ImageSlider = ({ images, onNavigate }) => {
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
             <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-transparent"></div>
 
+            {/* Text overlay: folder name or title (bottom-left) */}
+            <div className="absolute left-4 bottom-4 z-20 bg-black/60 text-white px-3 py-1 rounded-md text-sm font-semibold truncate max-w-[70%]">{image.folderName || image.title}</div>
+
             {/* Placeholder */}
             <div className="image-placeholder absolute inset-0 bg-gray-800 hidden items-center justify-center">
               <div className="text-gray-400 flex flex-col items-center">
@@ -85,27 +88,7 @@ const ImageSlider = ({ images, onNavigate }) => {
               </div>
             </div>
 
-            {/* Content Info */}
-            <div className={`absolute bottom-4 left-4 right-4 z-20 transition-all duration-700 delay-300 ${
-              index === currentIndex ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'
-            }`}>
-              <div className="flex items-end justify-between gap-4">
-                <div className="flex-1">
-                  <span className="inline-block px-2 py-0.5 rounded-full bg-white/10 backdrop-blur-md text-white/80 text-[8px] uppercase tracking-[0.2em] font-bold mb-2 border border-white/20">
-                    Hospital Gallery
-                  </span>
-                  <h3 className="text-white font-bold text-lg sm:text-2xl leading-tight drop-shadow-lg max-w-2xl">
-                    {image.title}
-                  </h3>
-                </div>
-                <button 
-                  onClick={() => onNavigate('gallery')}
-                  className="mb-0.5 p-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition-all hover:scale-110 active:scale-95 group/btn"
-                >
-                  <Maximize2 className="h-4 w-4 group-hover/btn:rotate-12 transition-transform" />
-                </button>
-              </div>
-            </div>
+            {/* Content Info (overlay shown above) */}
           </div>
         ))}
       </div>

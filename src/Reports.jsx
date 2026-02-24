@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FileText, Plus, Calendar, Download, X, Home as HomeIcon, ChevronLeft, Upload, CheckCircle, AlertCircle, Image as ImageIcon, File, Menu } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import { getUserReports, uploadUserReport } from './services/api';
@@ -17,6 +17,7 @@ const Reports = ({ onNavigate }) => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const mainContainerRef = useRef(null);
 
   // Scroll locking when sidebar is open
   useEffect(() => {
@@ -45,7 +46,29 @@ const Reports = ({ onNavigate }) => {
       document.body.style.width = 'unset';
       document.body.style.top = 'unset';
       document.body.style.touchAction = 'auto';
+      document.body.style.pointerEvents = 'auto';
     };
+  }, [isMenuOpen]);
+
+  // Close sidebar when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isMenuOpen && mainContainerRef.current) {
+        // Check if click is outside the sidebar (overlay backdrop click)
+        const sidebar = mainContainerRef.current.querySelector('[z-50]') || mainContainerRef.current.querySelector('.absolute.left-0');
+        if (!sidebar || !event.target.closest('.absolute.left-0.top-0.bottom-0.w-72')) {
+          // Clicked outside sidebar, close it
+          setIsMenuOpen(false);
+        }
+      }
+    };
+
+    if (isMenuOpen) {
+      document.addEventListener('click', handleClickOutside, true);
+      return () => {
+        document.removeEventListener('click', handleClickOutside, true);
+      };
+    }
   }, [isMenuOpen]);
 
   // Fetch reports on mount
@@ -56,9 +79,9 @@ const Reports = ({ onNavigate }) => {
   const fetchReports = async () => {
     try {
       setLoading(true);
-      
+
       const data = await getUserReports();
-      
+
       if (data.success) {
         setReports(data.reports || []);
       } else {
@@ -133,9 +156,9 @@ const Reports = ({ onNavigate }) => {
         reportType: uploadForm.reportType,
         testDate: uploadForm.testDate
       };
-      
+
       const data = await uploadUserReport(reportData, uploadForm.file);
-      
+
       if (data.success) {
         setSuccess('Report uploaded successfully!');
         setUploadForm({ reportName: '', reportType: '', testDate: '', file: null });
@@ -144,7 +167,7 @@ const Reports = ({ onNavigate }) => {
         // Reset file input
         const fileInput = document.getElementById('report-upload');
         if (fileInput) fileInput.value = '';
-        
+
         // Refresh reports list
         setTimeout(() => {
           fetchReports();
@@ -165,10 +188,10 @@ const Reports = ({ onNavigate }) => {
     if (!dateString) return 'N/A';
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('en-IN', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
+      return date.toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
       });
     } catch {
       return dateString;
@@ -185,12 +208,15 @@ const Reports = ({ onNavigate }) => {
   };
 
   return (
-    <div className="bg-white min-h-screen pb-10 relative">
+    <div
+      ref={mainContainerRef}
+      className={`bg-white min-h-screen pb-10 relative${isMenuOpen ? ' overflow-hidden max-h-screen' : ''}`}
+    >
       {/* Navbar */}
-      <div className="bg-white border-gray-200 shadow-sm border-b px-6 py-5 flex items-center justify-between sticky top-0 z-50 mt-6 transition-all duration-300">
+      <div className="bg-white border-gray-200 shadow-sm border-b px-6 py-5 flex items-center justify-between sticky top-0 z-50 mt-6 transition-all duration-300 pointer-events-auto">
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
+          className="p-2 rounded-xl hover:bg-gray-100 transition-colors pointer-events-auto"
         >
           {isMenuOpen ? <X className="h-6 w-6 text-gray-700" /> : <Menu className="h-6 w-6 text-gray-700" />}
         </button>
@@ -203,7 +229,7 @@ const Reports = ({ onNavigate }) => {
         </button>
       </div>
 
-        <Sidebar
+      <Sidebar
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
         onNavigate={onNavigate}

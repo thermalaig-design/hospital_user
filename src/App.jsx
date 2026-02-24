@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { LocalNotifications } from '@capacitor/local-notifications';
 import Login from './Login';
 import Home from './Home';
 import OTPVerification from './OTPVerification';
@@ -21,7 +22,9 @@ import DeveloperDetails from './DeveloperDetails';
 import TermsAndConditions from './TermsAndConditions';
 import PrivacyPolicy from './PrivacyPolicy';
 import Gallery from './Gallery';
-import { 
+import AdminUserProfiles from './admin/AdminUserProfiles';
+
+import {
   useAndroidBackHandler,
   useAndroidStatusBar,
   useAndroidSafeArea,
@@ -45,6 +48,66 @@ const HospitalTrusteeApp = () => {
   useAndroidSafeArea();
   useAndroidScreenOrientation('PORTRAIT');
   useAndroidKeyboard();
+
+  // ─── Birthday Notification Check ────────────────────────────────────────
+  useEffect(() => {
+    const checkBirthday = async () => {
+      try {
+        const userStr = localStorage.getItem('user');
+        if (!userStr) return;
+
+        const parsedUser = JSON.parse(userStr);
+        const userId = parsedUser['Membership number'] || parsedUser.Mobile || parsedUser.mobile || parsedUser.id;
+        if (!userId) return;
+
+        // Avoid showing local notification more than once per day
+        const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+        const localKey = `birthdayNotif_${userId}_${today}`;
+        if (localStorage.getItem(localKey)) return;
+
+        // Call backend to check birthday & insert DB notification
+        const response = await fetch('https://mah.contractmitra.in/api/notifications/check-birthdays', {
+          headers: { 'user-id': String(userId) },
+        });
+        const data = await response.json();
+
+        if (!data.success || !data.birthdayToday) return;
+
+        // Mark as shown locally (prevents repeat on same day)
+        localStorage.setItem(localKey, '1');
+
+        // Show Capacitor local push notification (visible even when app is in background)
+        try {
+          const permResult = await LocalNotifications.requestPermissions();
+          if (permResult.display === 'granted' || permResult.display === 'prompt-with-rationale') {
+            await LocalNotifications.schedule({
+              notifications: [
+                {
+                  id: Math.floor(Math.random() * 100000),
+                  title: '🎂 Happy Birthday!',
+                  body: `Maharaja Agrasen Samiti ki taraf se aapko janamdin ki hardik shubhkamnayein, ${data.name} ji! 🎉🎊`,
+                  schedule: { at: new Date(Date.now() + 1000) }, // 1 second delay
+                  sound: 'default',
+                  smallIcon: 'ic_launcher',
+                  actionTypeId: '',
+                  extra: null,
+                },
+              ],
+            });
+            console.log('🎂 Birthday push notification scheduled!');
+          }
+        } catch (notifErr) {
+          console.warn('LocalNotifications not available (web mode):', notifErr.message);
+        }
+      } catch (err) {
+        console.error('Birthday check error:', err);
+      }
+    };
+
+    // Small delay so app fully loads before check
+    const timer = setTimeout(checkBirthday, 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Appointment state
   const [appointmentForm, setAppointmentForm] = useState({
@@ -115,12 +178,13 @@ const HospitalTrusteeApp = () => {
         'reports': '/reports',
         'reference': '/reference',
         'notices': '/notices',
-          'notifications': '/notifications',
-          'committee-members': '/committee-members',
-          'sponsor-details': '/sponsor-details',
-          'developers': '/developers',
-          'gallery': '/gallery'
-        };
+        'notifications': '/notifications',
+        'committee-members': '/committee-members',
+        'sponsor-details': '/sponsor-details',
+        'developers': '/developers',
+        'gallery': '/gallery',
+        'admin-profiles': '/admin-profiles',
+      };
       const route = routeMap[screen] || '/';
       console.log('Navigating to route:', screen, '->', route);
       navigate(route);
@@ -134,7 +198,7 @@ const HospitalTrusteeApp = () => {
       const storedMember = sessionStorage.getItem('selectedMember');
       const storedPreviousScreen = sessionStorage.getItem('previousScreen');
       const storedPreviousScreenName = sessionStorage.getItem('previousScreenName');
-      
+
       if (storedMember) {
         try {
           const parsedMember = JSON.parse(storedMember);
@@ -163,14 +227,14 @@ const HospitalTrusteeApp = () => {
   // Check if user should be on profile page
   const shouldShowProfile = () => {
     const user = localStorage.getItem('user');
-    
+
     // If user exists in localStorage (just logged in) but no profile saved yet, show profile
     if (user) {
       try {
         const parsedUser = JSON.parse(user);
         const userKey = `userProfile_${parsedUser.Mobile || parsedUser.mobile || parsedUser.id || 'default'}`;
         const savedProfile = localStorage.getItem(userKey);
-        
+
         // If no saved profile exists for this user, show profile page
         if (!savedProfile) {
           return true;
@@ -181,24 +245,23 @@ const HospitalTrusteeApp = () => {
         return true;
       }
     }
-    
+
     return false;
   };
 
   return (
-    <div className={`bg-white min-h-screen relative shadow-2xl overflow-x-hidden ${
-      (location.pathname === '/login' || location.pathname === '/otp-verification' || location.pathname === '/profile') ? 'overflow-hidden' : 'overflow-y-auto'
-    } max-w-full md:max-w-[430px] md:mx-auto pt-2`}>
+    <div className={`bg-white min-h-screen relative shadow-2xl overflow-x-hidden ${(location.pathname === '/login' || location.pathname === '/otp-verification' || location.pathname === '/profile') ? 'overflow-hidden' : 'overflow-y-auto'
+      } max-w-full md:max-w-[430px] md:mx-auto pt-2`}>
       <Routes>
-        <Route 
-          path="/login" 
-          element={<Login />} 
+        <Route
+          path="/login"
+          element={<Login />}
         />
-        <Route 
-          path="/" 
+        <Route
+          path="/"
           element={
             <ProtectedRoute>
-              <Home 
+              <Home
                 onNavigate={handleNavigate}
                 onLogout={() => {
                   localStorage.removeItem('isLoggedIn');
@@ -208,25 +271,25 @@ const HospitalTrusteeApp = () => {
                 isMember={isMember}
               />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/profile" 
+        <Route
+          path="/profile"
           element={
             <ProtectedRoute>
-              <Profile 
+              <Profile
                 onNavigate={handleNavigate}
                 onNavigateBack={() => navigate('/')}
-                onProfileUpdate={() => {}}
+                onProfileUpdate={() => { }}
               />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/directory" 
+        <Route
+          path="/directory"
           element={
             <ProtectedRoute>
-              <HealthcareTrusteeDirectory 
+              <HealthcareTrusteeDirectory
                 onNavigate={handleNavigate}
                 onNavigateBack={() => navigate('/')}
                 onLogout={() => {
@@ -236,13 +299,13 @@ const HospitalTrusteeApp = () => {
                 }}
               />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/healthcare-trustee-directory" 
+        <Route
+          path="/healthcare-trustee-directory"
           element={
             <ProtectedRoute>
-              <HealthcareTrusteeDirectory 
+              <HealthcareTrusteeDirectory
                 onNavigate={handleNavigate}
                 onNavigateBack={() => navigate('/')}
                 onLogout={() => {
@@ -252,66 +315,67 @@ const HospitalTrusteeApp = () => {
                 }}
               />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/appointment" 
+        <Route
+          path="/appointment"
           element={
             <ProtectedRoute>
-              <Appointments 
+              <Appointments
                 onNavigate={handleNavigate}
-                appointmentForm={appointmentForm} 
-                setAppointmentForm={setAppointmentForm} 
+                appointmentForm={appointmentForm}
+                setAppointmentForm={setAppointmentForm}
                 onNavigateBack={() => navigate('/')}
               />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/reports" 
+        <Route
+          path="/reports"
           element={
             <ProtectedRoute>
               <Reports onNavigate={handleNavigate} />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/reference" 
+        <Route
+          path="/reference"
           element={
             <ProtectedRoute>
-              <Referral 
+              <Referral
                 onNavigate={handleNavigate}
-                referenceView={referenceView} 
-                setReferenceView={setReferenceView} 
-                newReference={newReference} 
-                setNewReference={setNewReference} 
+                referenceView={referenceView}
+                setReferenceView={setReferenceView}
+                newReference={newReference}
+                setNewReference={setNewReference}
               />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/notices" 
+        <Route
+          path="/notices"
           element={
             <ProtectedRoute>
               <Notices onNavigate={handleNavigate} />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/notifications" 
+        <Route
+          path="/notifications"
           element={
             <ProtectedRoute>
               <Notifications onNavigate={handleNavigate} />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/member-details" 
+        <Route
+          path="/member-details"
           element={
             <ProtectedRoute>
               {selectedMember ? (
-                <MemberDetails 
+                <MemberDetails
                   member={selectedMember}
+                  onNavigate={handleNavigate}
                   onNavigateBack={() => {
                     // Navigate back to the specific directory tab, not just main directory
                     if (previousScreenName && (previousScreenName === 'healthcare' || previousScreenName === 'committee' || previousScreenName === 'trustee')) {
@@ -333,14 +397,14 @@ const HospitalTrusteeApp = () => {
                 <Navigate to="/directory" replace />
               )}
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/committee-members" 
+        <Route
+          path="/committee-members"
           element={
             <ProtectedRoute>
               {selectedMember ? (
-                <CommitteeMembers 
+                <CommitteeMembers
                   committeeData={selectedMember}
                   onNavigateBack={() => {
                     // Navigate back to the specific directory tab, not just main directory
@@ -360,55 +424,64 @@ const HospitalTrusteeApp = () => {
                 <Navigate to="/directory" replace />
               )}
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/sponsor-details" 
+        <Route
+          path="/sponsor-details"
           element={
             <ProtectedRoute>
-              <SponsorDetails onBack={() => navigate(-1)} />
+              <SponsorDetails onBack={() => navigate(-1)} onNavigate={handleNavigate} />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/developers" 
+        <Route
+          path="/developers"
           element={
             <ProtectedRoute>
-              <DeveloperDetails 
+              <DeveloperDetails
                 onNavigateBack={() => navigate(-1)}
                 onNavigate={handleNavigate}
               />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/gallery" 
+        <Route
+          path="/gallery"
           element={
             <ProtectedRoute>
-              <Gallery 
+              <Gallery
+                onNavigate={handleNavigate}
                 onNavigateBack={() => navigate('/')}
               />
             </ProtectedRoute>
-          } 
+          }
+        />
+        <Route
+          path="/admin-profiles"
+          element={
+            <ProtectedRoute>
+              <AdminUserProfiles onNavigate={handleNavigate} />
+            </ProtectedRoute>
+          }
         />
 
-          <Route 
-            path="/otp-verification" 
-            element={<OTPVerification />} 
-          />
-          <Route 
-            path="/special-otp-verification" 
-            element={<SpecialOTPVerification />} 
-          />
-          <Route 
-            path="/terms-and-conditions" 
-            element={<TermsAndConditions />} 
-          />
-          <Route 
-            path="/privacy-policy" 
-            element={<PrivacyPolicy />} 
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
+        <Route
+          path="/otp-verification"
+          element={<OTPVerification />}
+        />
+        <Route
+          path="/special-otp-verification"
+          element={<SpecialOTPVerification />}
+        />
+        <Route
+          path="/terms-and-conditions"
+          element={<TermsAndConditions />}
+        />
+        <Route
+          path="/privacy-policy"
+          element={<PrivacyPolicy />}
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
   );

@@ -3,136 +3,165 @@ import { supabase } from './supabaseClient';
 const TABLE = 'gallery_photos';
 const BUCKET = 'gallery';
 
-// Temporary dummy images – used while Supabase gallery table/storage
-// is being set up correctly.
-// These URLs come from your Supabase storage where the photos are already uploaded.
-const DUMMY_IMAGES = [
-  {
-    id: 'dummy-1',
-    url: 'https://gskzafarbzhdcgvrrkdc.supabase.co/storage/v1/object/public/gallery/gallery/1770190814092_WhatsApp%20Image%202026-02-04%20at%2012.35.24%20PM.jpeg',
-    title: 'Modern Hospital Building Exterior',
-    createdAt: null
-  },
-  {
-    id: 'dummy-2',
-    url: 'https://gskzafarbzhdcgvrrkdc.supabase.co/storage/v1/object/public/gallery/gallery/1770190852039_WhatsApp%20Image%202026-02-04%20at%2012.35.31%20PM%20(1).jpeg',
-    title: 'Reception & Patient Waiting Area',
-    createdAt: null
-  },
-  {
-    id: 'dummy-3',
-    url: 'https://gskzafarbzhdcgvrrkdc.supabase.co/storage/v1/object/public/gallery/gallery/1770190849181_WhatsApp%20Image%202026-02-04%20at%2012.35.27%20PM.jpeg',
-    title: 'Comfortable Patient Room',
-    createdAt: null
-  },
-  {
-    id: 'dummy-4',
-    url: 'https://gskzafarbzhdcgvrrkdc.supabase.co/storage/v1/object/public/gallery/gallery/1770190919504_6.webp',
-    title: 'Operation Theatre & Equipment',
-    createdAt: null
-  },
-  {
-    id: 'dummy-5',
-    url: 'https://gskzafarbzhdcgvrrkdc.supabase.co/storage/v1/object/public/gallery/gallery/1770190852725_WhatsApp%20Image%202026-02-04%20at%2012.35.35%20PM.jpeg',
-    title: 'Advanced Medical Facilities',
-    createdAt: null
-  },
-  {
-    id: 'dummy-6',
-    url: 'https://gskzafarbzhdcgvrrkdc.supabase.co/storage/v1/object/public/gallery/gallery/1770190852377_WhatsApp%20Image%202026-02-04%20at%2012.35.31%20PM.jpeg',
-    title: 'Caring Doctors & Nursing Staff',
-    createdAt: null
-  }
-];
 
-function getDummyImages(limit) {
-  if (typeof limit === 'number') {
-    return DUMMY_IMAGES.slice(0, limit);
-  }
-  return DUMMY_IMAGES;
-}
 
 function mapRowToImage(row) {
   return {
     id: row.id,
     url: row.public_url,
     title: row.original_name || 'Gallery Photo',
+    folderId: row.folder_id,
+    folderName: row.folder_name || 'General',
     createdAt: row.created_at
   };
 }
 
-function mapStorageObjToImage(obj) {
-  const publicUrl = supabase.storage.from(BUCKET).getPublicUrl(obj.name).data.publicUrl;
-  return {
-    id: obj.id || obj.name,
-    url: publicUrl,
-    title: obj.name,
-    createdAt: obj.created_at || obj.updated_at || null
-  };
+// Upload photo to Supabase Storage and save metadata to database
+export async function uploadGalleryPhoto(file, originalName = null, folderId = null, folderName = 'General') {
+  try {
+    if (!file) throw new Error('No file provided');
+
+    const timestamp = Date.now();
+    const fileName = `${timestamp}_${file.name}`;
+    const storagePath = fileName;
+
+    // Upload file to storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from(BUCKET)
+      .upload(storagePath, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (uploadError) throw uploadError;
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from(BUCKET)
+      .getPublicUrl(storagePath);
+
+    const publicUrl = urlData.publicUrl;
+
+    // Get user info
+    const { data: authData } = await supabase.auth.getUser();
+    const userId = authData?.user?.id;
+
+    // Save metadata to gallery_photos table
+    const { data: insertData, error: insertError } = await supabase
+      .from(TABLE)
+      .insert([
+        {
+          storage_bucket: BUCKET,
+          storage_path: storagePath,
+          public_url: publicUrl,
+          original_name: originalName || file.name,
+          mime_type: file.type,
+          size_bytes: file.size,
+          uploaded_by: userId,
+          folder_id: folderId,
+          folder_name: folderName || 'General'
+        }
+      ])
+      .select();
+
+    if (insertError) throw insertError;
+
+    return {
+      success: true,
+      photo: insertData[0],
+      message: 'Photo uploaded successfully'
+    };
+  } catch (error) {
+    console.error('Error uploading photo:', error);
+    return {
+      success: false,
+      error: error.message,
+      message: 'Failed to upload photo'
+    };
+  }
 }
 
-async function fallbackListFromStorage({ limit } = {}) {
-  // Lists files from public bucket and generates public URLs
-  const { data, error } = await supabase.storage
-    .from(BUCKET)
-    .list('', {
-      limit: limit ?? 100,
-      offset: 0,
-      sortBy: { column: 'created_at', order: 'desc' }
+// Fetch all gallery folders from gallery_photos table (get distinct folders)
+export async function fetchGalleryFolders() {
+  try {
+    const { data, error } = await supabase
+      .from(TABLE)
+      .select('folder_id, folder_name');
+
+    if (error) throw error;
+
+    // Get unique folders from photos
+    const folders = [];
+    const seen = new Set();
+    
+    (data || []).forEach(row => {
+      const folderId = row.folder_id || `folder_${row.folder_name}`;
+      const folderName = row.folder_name || 'General';
+      
+      if (!seen.has(folderName)) {
+        seen.add(folderName);
+        folders.push({
+          id: folderId || folderName,
+          name: folderName
+        });
+      }
     });
 
-  if (error) throw error;
-  return (data || [])
-    .filter((o) => o && o.name && !o.name.endsWith('/'))
-    .map(mapStorageObjToImage);
+    // Sort by name
+    folders.sort((a, b) => a.name.localeCompare(b.name));
+
+    return folders;
+  } catch (err) {
+    console.error('Error fetching folders:', err);
+    return [];
+  }
 }
 
-export async function fetchLatestGalleryImages(limit = 6) {
-  // TEMP: always show dummy images to avoid 404 errors from missing table.
-  // Once Supabase gallery_photos table & bucket are correctly configured,
-  // remove this early return and use the Supabase-backed code below.
-  return getDummyImages(limit);
+// Fetch images by folder
+export async function fetchImagesByFolder(folderId = null) {
+  try {
+    let query = supabase
+      .from(TABLE)
+      .select('id, public_url, original_name, folder_id, folder_name, created_at');
 
-  /*
+    if (folderId) {
+      query = query.eq('folder_id', folderId);
+    }
+
+    const { data, error } = await query
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return (data || []).map(mapRowToImage).filter((img) => img.url);
+  } catch (err) {
+    console.error('Error fetching images by folder:', err);
+    return [];
+  }
+}
+
+// Fetch latest gallery images from database
+export async function fetchLatestGalleryImages(limit = 6) {
   const { data, error } = await supabase
     .from(TABLE)
-    .select('id, public_url, original_name, created_at')
+    .select('id, public_url, original_name, folder_id, folder_name, created_at')
     .order('created_at', { ascending: false })
     .limit(limit);
 
-  if (error) {
-    // If table is protected by RLS or not accessible, fall back to storage listing.
-    console.warn('[galleryService] gallery_photos select failed, falling back to storage:', error);
-    return await fallbackListFromStorage({ limit });
-  }
+  if (error) throw error;
 
-  const mapped = (data || []).map(mapRowToImage).filter((img) => img.url);
-  if (mapped.length > 0) return mapped;
-
-  // If table exists but has no rows / missing public_url, fall back to storage.
-  return await fallbackListFromStorage({ limit });
-  */
+  return (data || []).map(mapRowToImage).filter((img) => img.url);
 }
 
+// Fetch all gallery images from database
 export async function fetchAllGalleryImages() {
-  // TEMP: always return all dummy images.
-  return getDummyImages();
-
-  /*
   const { data, error } = await supabase
     .from(TABLE)
-    .select('id, public_url, original_name, created_at')
+    .select('id, public_url, original_name, folder_id, folder_name, created_at')
     .order('created_at', { ascending: false });
 
-  if (error) {
-    console.warn('[galleryService] gallery_photos select failed, falling back to storage:', error);
-    return await fallbackListFromStorage();
-  }
+  if (error) throw error;
 
-  const mapped = (data || []).map(mapRowToImage).filter((img) => img.url);
-  if (mapped.length > 0) return mapped;
-
-  return await fallbackListFromStorage();
-  */
+  return (data || []).map(mapRowToImage).filter((img) => img.url);
 }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User, Mail, Calendar, MapPin, Briefcase, Camera, Save, Shield, BadgeCheck, Phone, Droplet, UserCircle, Home as HomeIcon, Menu, X, Award, Upload, CheckCircle, AlertCircle } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import { getAllElectedMembers, getProfile, saveProfile } from './services/api';
@@ -10,15 +10,15 @@ const InputField = ({ label, icon: Icon, type = 'text', value, onChange, placeho
       {label} {required && <span className="text-red-500">*</span>}
     </label>
     
-    <div className="flex items-center gap-3">
-      <div className={`p-2 rounded-xl ${disabled ? 'bg-gray-200 text-gray-500' : 'bg-indigo-50 text-indigo-600'}`}>
+    <div className="flex items-center gap-3 min-w-0">
+      <div className={`p-2 rounded-xl flex-shrink-0 ${disabled ? 'bg-gray-200 text-gray-500' : 'bg-indigo-50 text-indigo-600'}`}>
         {Icon && <Icon className="h-4 w-4" />}
       </div>
       <input
         type={type}
         value={value || ''}
         onChange={(e) => onChange(e.target.value)}
-        className={`flex-1 text-sm font-medium ${disabled ? 'text-gray-600 bg-gray-100 cursor-not-allowed' : 'text-gray-800 bg-transparent'} focus:outline-none placeholder:font-normal placeholder:text-gray-400`}
+        className={`flex-1 min-w-0 text-sm font-medium ${disabled ? 'text-gray-600 bg-gray-100 cursor-not-allowed' : 'text-gray-800 bg-transparent'} focus:outline-none placeholder:text-xs placeholder:font-normal placeholder:text-gray-400 placeholder:truncate`}
         placeholder={placeholder || `Enter ${label}`}
         disabled={disabled}
       />
@@ -85,9 +85,15 @@ const SelectionGroup = ({ label, value, onChange, options, required = false, dis
 
 const Profile = ({ onNavigate, onProfileUpdate }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const mainContainerRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showNavigationWarning, setShowNavigationWarning] = useState(false);
+  const [navigationTarget, setNavigationTarget] = useState(null);
+  const [originalProfileData, setOriginalProfileData] = useState(null);
   
   const [profileData, setProfileData] = useState({
     serialNo: '',
@@ -127,6 +133,22 @@ const Profile = ({ onNavigate, onProfileUpdate }) => {
   const [profilePhotoFile, setProfilePhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
 
+  // Track original profile data to detect changes
+  // Only initialize after profile is loaded (profileData has real values)
+  useEffect(() => {
+    if (!loading && profileData.name) {
+      setOriginalProfileData(JSON.parse(JSON.stringify(profileData)));
+    }
+  }, [loading]);
+
+  // Detect unsaved changes
+  useEffect(() => {
+    if (originalProfileData) {
+      const hasChanges = JSON.stringify(profileData) !== JSON.stringify(originalProfileData) || profilePhotoFile !== null;
+      setHasUnsavedChanges(hasChanges);
+    }
+  }, [profileData, profilePhotoFile, originalProfileData]);
+
   // Scroll locking when sidebar is open
   useEffect(() => {
     if (isMenuOpen) {
@@ -155,6 +177,26 @@ const Profile = ({ onNavigate, onProfileUpdate }) => {
       document.body.style.top = 'unset';
       document.body.style.touchAction = 'auto';
     };
+  }, [isMenuOpen]);
+
+  // Close sidebar when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isMenuOpen) {
+        const isSidebarClick = event.target.closest('[data-sidebar="true"]') || 
+                               event.target.closest('[data-sidebar-overlay="true"]');
+        if (!isSidebarClick) {
+          setIsMenuOpen(false);
+        }
+      }
+    };
+
+    if (isMenuOpen) {
+      document.addEventListener('click', handleClickOutside, true);
+      return () => {
+        document.removeEventListener('click', handleClickOutside, true);
+      };
+    }
   }, [isMenuOpen]);
 
   // Load profile from Supabase on mount
@@ -353,7 +395,8 @@ const Profile = ({ onNavigate, onProfileUpdate }) => {
       const data = await saveProfile(profileData, profilePhotoFile);
         
       if (data.success) {
-        setMessage({ type: 'success', text: 'Profile saved successfully!' });
+        // Show success popup instead of toast
+        setShowSuccessPopup(true);
           
         // Update profile photo URL if uploaded
         if (data.profile && data.profile.profile_photo_url) {
@@ -364,11 +407,16 @@ const Profile = ({ onNavigate, onProfileUpdate }) => {
         // Also save to localStorage as backup
         const userKey = `userProfile_${user.Mobile || user.mobile || user.id || 'default'}`;
         localStorage.setItem(userKey, JSON.stringify(profileData));
+        
+        // Update original data to mark as saved
+        setOriginalProfileData(JSON.parse(JSON.stringify(profileData)));
+        setHasUnsavedChanges(false);
+        setProfilePhotoFile(null);
           
         if (onProfileUpdate) onProfileUpdate(profileData);
           
-        // Clear message after 3 seconds
-        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+        // Auto-hide popup after 3 seconds
+        setTimeout(() => setShowSuccessPopup(false), 3000);
       } else {
         setMessage({ type: 'error', text: data.message || 'Failed to save profile' });
       }
@@ -378,6 +426,31 @@ const Profile = ({ onNavigate, onProfileUpdate }) => {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Handle navigation with unsaved changes check
+  const handleNavigate = (target) => {
+    if (hasUnsavedChanges) {
+      setNavigationTarget(target);
+      setShowNavigationWarning(true);
+    } else {
+      onNavigate(target);
+    }
+  };
+
+  // Confirm navigation and discard changes
+  const handleConfirmNavigation = () => {
+    setShowNavigationWarning(false);
+    setHasUnsavedChanges(false);
+    if (navigationTarget) {
+      onNavigate(navigationTarget);
+    }
+  };
+
+  // Cancel navigation and stay on page
+  const handleCancelNavigation = () => {
+    setShowNavigationWarning(false);
+    setNavigationTarget(null);
   };
 
   if (loading) {
@@ -392,18 +465,21 @@ const Profile = ({ onNavigate, onProfileUpdate }) => {
   }
 
   return (
-    <div className="min-h-screen pb-10 bg-gradient-to-br from-gray-50 via-white to-gray-50 font-sans relative">
+    <div 
+      ref={mainContainerRef}
+      className="min-h-screen pb-10 bg-gradient-to-br from-gray-50 via-white to-gray-50 font-sans relative"
+    >
       {/* Sticky Header */}
-      <div className="bg-white border-gray-200 shadow-sm border-b px-4 sm:px-6 py-5 flex items-center justify-between sticky top-0 z-50 mt-6 transition-all duration-300">
+      <div className="bg-white border-gray-200 shadow-sm border-b px-4 sm:px-6 py-5 flex items-center justify-between sticky top-0 z-50 mt-6 transition-all duration-300 pointer-events-auto">
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
+          className="p-2 rounded-xl hover:bg-gray-100 transition-colors pointer-events-auto"
         >
           {isMenuOpen ? <X className="h-6 w-6 text-gray-700" /> : <Menu className="h-6 w-6 text-gray-700" />}
         </button>
         <h1 className="text-lg font-bold text-gray-900 transition-colors">Edit Profile</h1>
         <button
-          onClick={() => onNavigate('home')}
+          onClick={() => handleNavigate('home')}
           className="p-2.5 rounded-xl transition-colors border border-indigo-200 text-indigo-600 bg-indigo-50 hover:bg-indigo-100"
         >
           <HomeIcon className="h-5 w-5" />
@@ -418,7 +494,7 @@ const Profile = ({ onNavigate, onProfileUpdate }) => {
             <Sidebar
               isOpen={isMenuOpen}
               onClose={() => setIsMenuOpen(false)}
-              onNavigate={onNavigate}
+              onNavigate={handleNavigate}
               currentPage="profile"
             />
           </div>
@@ -428,7 +504,7 @@ const Profile = ({ onNavigate, onProfileUpdate }) => {
       <Sidebar
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
-        onNavigate={onNavigate}
+        onNavigate={handleNavigate}
         currentPage="profile"
       />
 
@@ -624,15 +700,11 @@ const Profile = ({ onNavigate, onProfileUpdate }) => {
               icon={Shield}
               value={profileData.aadhaarId}
               onChange={(val) => {
-                const formatted = val.replace(/\D/g, '').replace(/(\d{4})(\d{0,4})(\d{0,4})/, (match, p1, p2, p3) => {
-                  let result = p1;
-                  if (p2) result += ' ' + p2;
-                  if (p3) result += ' ' + p3;
-                  return result;
-                });
+                const digits = val.replace(/\D/g, '').slice(0, 16);
+                const formatted = digits.replace(/(\d{4})(?=\d)/g, '$1 ');
                 setProfileData({ ...profileData, aadhaarId: formatted });
               }}
-              placeholder="0000 0000 0000"
+              placeholder="0000 0000 0000 0000"
             />
             <InputField
               label="Emergency Contact Name"
@@ -657,21 +729,28 @@ const Profile = ({ onNavigate, onProfileUpdate }) => {
               Security & Identity
             </h3>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <InputField
-                  label="Blood Group"
-                  icon={Droplet}
-                  value={profileData.bloodGroup}
-                  onChange={(val) => setProfileData({ ...profileData, bloodGroup: val })}
-                  placeholder="O+"
-                />
-                <InputField
-                  label="Date of Birth"
-                  icon={Calendar}
-                  type="date"
-                  value={profileData.dob}
-                  onChange={(val) => setProfileData({ ...profileData, dob: val })}
-                />
+              <InputField
+                label="Blood Group"
+                icon={Droplet}
+                value={profileData.bloodGroup}
+                onChange={(val) => setProfileData({ ...profileData, bloodGroup: val })}
+                placeholder="O+"
+              />
+              <div className={`bg-white rounded-2xl p-4 border border-gray-200 shadow-sm transition-all hover:border-indigo-300 focus-within:border-indigo-500 focus-within:shadow-md`}>
+                <label className="block text-xs font-bold text-gray-600 mb-2 ml-1">
+                  Date of Birth
+                </label>
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="p-2 rounded-xl flex-shrink-0 bg-indigo-50 text-indigo-600">
+                    <Calendar className="h-4 w-4" />
+                  </div>
+                  <input
+                    type="date"
+                    value={profileData.dob || ''}
+                    onChange={(e) => setProfileData({ ...profileData, dob: e.target.value })}
+                    className="flex-1 min-w-0 text-sm font-medium text-gray-800 bg-transparent focus:outline-none"
+                  />
+                </div>
               </div>
               <InputField
                 label="Nationality"
@@ -918,6 +997,64 @@ const Profile = ({ onNavigate, onProfileUpdate }) => {
           )}
         </button>
       </div>
+
+      {/* Success Popup Modal */}
+      {showSuccessPopup && (
+        <div className="fixed inset-0 bg-black/50 z-[999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center animate-in fade-in zoom-in">
+            <div className="mb-4 flex justify-center">
+              <div className="bg-green-100 p-3 rounded-full">
+                <CheckCircle className="h-12 w-12 text-green-600" />
+              </div>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Success!</h2>
+            <p className="text-gray-600 mb-6 text-base">Your profile has been saved successfully</p>
+            <button
+              onClick={() => setShowSuccessPopup(false)}
+              className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 transition-colors active:scale-95"
+            >
+              Great!
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Unsaved Changes Warning Popup */}
+      {showNavigationWarning && (
+        <div className="fixed inset-0 bg-black/50 z-[999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full animate-in fade-in zoom-in">
+            <div className="mb-4 flex justify-center">
+              <div className="bg-amber-100 p-3 rounded-full">
+                <AlertCircle className="h-12 w-12 text-amber-600" />
+              </div>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Unsaved Changes</h2>
+            <p className="text-gray-600 mb-6 text-base">If you go to another page, your changes won't be saved. Would you like to save before leaving?</p>
+            <div className="flex gap-3">
+              <button
+                onClick={handleCancelNavigation}
+                className="flex-1 bg-gray-200 text-gray-800 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-colors active:scale-95"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  await handleSave();
+                  setShowNavigationWarning(false);
+                  setHasUnsavedChanges(false);
+                  if (navigationTarget) {
+                    onNavigate(navigationTarget);
+                  }
+                }}
+                disabled={saving}
+                className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-semibold hover:bg-indigo-700 transition-colors active:scale-95 disabled:opacity-50"
+              >
+                {saving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

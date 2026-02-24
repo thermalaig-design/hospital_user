@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { User, Mail, Calendar, MapPin, Briefcase, Award, Users, Search, Phone, Star, Stethoscope, Building2, ChevronRight, Filter, ArrowLeft, Menu, LogOut, Bell, Heart, ArrowRight, X, Home as HomeIcon, Clock, FileText, UserPlus, Pill, ChevronLeft } from 'lucide-react';
 import { getMemberTypes, getAllHospitals, getAllElectedMembers, getAllCommitteeMembers, getMembersPage, getProfilePhotos } from './services/api';
+import { getOpdDoctors } from './services/supabaseService';
 import Sidebar from './components/Sidebar';
 
 const CACHE_KEY = 'directory_data_cache';
@@ -15,6 +16,7 @@ const Directory = ({ onNavigate }) => {
   const [hospitals, setHospitals] = useState([]);
   const [electedMembers, setElectedMembers] = useState([]);
   const [committeeMembers, setCommitteeMembers] = useState([]);
+  const [supaDoctors, setSupaDoctors] = useState([]); // doctors from Supabase opd_schedule
   const [memberTypes, setMemberTypes] = useState([]);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -52,7 +54,24 @@ const Directory = ({ onNavigate }) => {
       document.body.style.width = 'unset';
       document.body.style.top = 'unset';
       document.body.style.touchAction = 'auto';
+      document.body.style.pointerEvents = 'auto';
     };
+  }, [isMenuOpen]);
+
+  // Close sidebar when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isMenuOpen && !event.target.closest('.absolute.left-0.top-0.bottom-0.w-72')) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    if (isMenuOpen) {
+      document.addEventListener('click', handleClickOutside, true);
+      return () => {
+        document.removeEventListener('click', handleClickOutside, true);
+      };
+    }
   }, [isMenuOpen]);
 
   // Restore directory tab when coming back from member details
@@ -63,7 +82,7 @@ const Directory = ({ onNavigate }) => {
         setDirectoryTab(restoreTab);
         sessionStorage.removeItem('restoreDirectoryTab');
       }, 0);
-      
+
       return () => clearTimeout(timer);
     }
   }, []);
@@ -72,24 +91,24 @@ const Directory = ({ onNavigate }) => {
   const loadTabData = useCallback(async (tabId) => {
     // If already loaded, skip
     if (loadedTabsRef.current.has(tabId)) return;
-    
+
     try {
       setError(null);
-      
+
       if (tabId === 'all' || tabId === 'healthcare' || tabId === 'trustees' || tabId === 'patrons' || tabId === 'doctors') {
         // Load first page of members only
         if (allMembers.length === 0) {
           const res = await getMembersPage(1, itemsPerPage);
           setAllMembers(res?.data || []);
           setTotalMembersCount(res?.count ?? null);
-          
+
           // Fetch profile photos for trustees and patrons after loading members
           if (tabId === 'trustees' || tabId === 'patrons' || tabId === 'all') {
             const memberIds = res?.data
               .filter(member => member['Membership number'] || member.Mobile || member['S. No.'])
               .map(member => member['Membership number'] || member.Mobile || member['S. No.'])
               .filter(Boolean);
-            
+
             if (memberIds && memberIds.length > 0) {
               try {
                 const photosResponse = await getProfilePhotos(memberIds);
@@ -107,6 +126,18 @@ const Directory = ({ onNavigate }) => {
           const typesRes = await getMemberTypes();
           setMemberTypes(typesRes?.data || []);
         }
+
+        // Load Supabase OPD doctors when relevant
+        if ((tabId === 'doctors' || tabId === 'healthcare') && supaDoctors.length === 0) {
+          try {
+            const supaRes = await getOpdDoctors();
+            if (supaRes.success && Array.isArray(supaRes.data)) {
+              setSupaDoctors(supaRes.data);
+            }
+          } catch (sErr) {
+            console.error('Error loading doctors from Supabase:', sErr);
+          }
+        }
         loadedTabsRef.current.add(tabId);
       } else if (tabId === 'hospitals') {
         // Load hospitals only when tab is selected
@@ -120,13 +151,13 @@ const Directory = ({ onNavigate }) => {
         if (electedMembers.length === 0) {
           const electedRes = await getAllElectedMembers();
           setElectedMembers(electedRes?.data || []);
-          
+
           // Fetch profile photos for elected members
           const memberIds = electedRes?.data
             .filter(member => member['Membership number'] || member.Mobile || member['S. No.'] || member.membership_number_elected)
             .map(member => member['Membership number'] || member.Mobile || member['S. No.'] || member.membership_number_elected)
             .filter(Boolean);
-          
+
           if (memberIds && memberIds.length > 0) {
             try {
               const photosResponse = await getProfilePhotos(memberIds);
@@ -147,13 +178,13 @@ const Directory = ({ onNavigate }) => {
           // Full members will be loaded when user clicks on a specific committee
           const committeeRes = await getAllCommitteeMembers();
           setCommitteeMembers(committeeRes?.data || []);
-          
+
           // Fetch profile photos for committee members
           const memberIds = committeeRes?.data
             .filter(member => member['Membership number'] || member.Mobile || member['S. No.'] || member.member_id)
             .map(member => member['Membership number'] || member.Mobile || member['S. No.'] || member.member_id)
             .filter(Boolean);
-          
+
           if (memberIds && memberIds.length > 0) {
             try {
               const photosResponse = await getProfilePhotos(memberIds);
@@ -172,14 +203,14 @@ const Directory = ({ onNavigate }) => {
           const res = await getMembersPage(1, itemsPerPage);
           setAllMembers(res?.data || []);
           setTotalMembersCount(res?.count ?? null);
-          
+
           // Fetch profile photos for trustees and patrons if this is one of those tabs
           if (tabId === 'trustees' || tabId === 'patrons' || tabId === 'all') {
             const memberIds = res?.data
               .filter(member => member['Membership number'] || member.Mobile || member['S. No.'])
               .map(member => member['Membership number'] || member.Mobile || member['S. No.'])
               .filter(Boolean);
-            
+
             if (memberIds && memberIds.length > 0) {
               try {
                 const photosResponse = await getProfilePhotos(memberIds);
@@ -202,7 +233,7 @@ const Directory = ({ onNavigate }) => {
       console.error(`Error loading data for tab ${tabId}:`, err);
       setError(`Failed to load data: ${err.message || 'Please make sure backend server is running'}`);
     }
-  }, [allMembers.length, hospitals.length, electedMembers.length, committeeMembers.length, memberTypes.length, itemsPerPage, getProfilePhotos]);
+  }, [allMembers.length, hospitals.length, electedMembers.length, committeeMembers.length, memberTypes.length, itemsPerPage, getProfilePhotos, supaDoctors.length]);
 
   // Load minimal data on mount - only first page of members
   useEffect(() => {
@@ -212,7 +243,7 @@ const Directory = ({ onNavigate }) => {
       // Load only first page of members initially
       loadTabData('healthcare');
     }, 0);
-    
+
     return () => clearTimeout(timer);
   }, []); // loadTabData is now defined
 
@@ -222,7 +253,7 @@ const Directory = ({ onNavigate }) => {
       const timer = setTimeout(() => {
         loadTabData(directoryTab);
       }, 0);
-      
+
       return () => clearTimeout(timer);
     }
   }, [directoryTab, dataLoaded, loadTabData]);
@@ -238,7 +269,7 @@ const Directory = ({ onNavigate }) => {
       { id: 'committee', label: 'Committee', icon: Users },
       { id: 'doctors', label: 'Doctors', icon: Stethoscope },
       { id: 'hospitals', label: 'Hospitals', icon: Building2 },
-      ...memberTypes.filter(type => 
+      ...memberTypes.filter(type =>
         !['Trustee', 'Patron', 'trustee', 'patron', 'doctor', 'medical', 'hospital', 'clinic', 'chairman', 'secretary', 'committee'].includes(type.toLowerCase())
       ).map(type => ({
         id: type.toLowerCase().replace(/\s+/g, '-'),
@@ -254,8 +285,13 @@ const Directory = ({ onNavigate }) => {
       // Show all members
       return allMembers;
     } else if (tabId === 'healthcare') {
-      // Filter for healthcare professionals (excluding hospital-related entries) and include hospitals separately
-      const healthcareMembers = allMembers.filter(member => 
+      // Prefer Supabase `opd_schedule` doctors when available
+      if (supaDoctors && supaDoctors.length > 0) {
+        return [...supaDoctors, ...hospitals];
+      }
+
+      // Fallback: Filter for healthcare professionals (excluding hospital-related entries) and include hospitals separately
+      const healthcareMembers = allMembers.filter(member =>
         ((member.type && (
           member.type.toLowerCase().includes('doctor') ||
           member.type.toLowerCase().includes('medical')
@@ -274,44 +310,44 @@ const Directory = ({ onNavigate }) => {
         const typeLower = member.type.toLowerCase().trim();
         return typeLower === 'trustee' || typeLower === 'trustees';
       });
-      
+
       // Also add elected members who are trustees (merged data already includes member table data)
       const electedTrustees = electedMembers.filter(elected => {
         // Check if this elected member's type indicates they're a trustee (from merged member table data)
         return elected.type && (
-          elected.type.toLowerCase().includes('trustee') || 
-          elected.type.toLowerCase() === 'trustee' || 
+          elected.type.toLowerCase().includes('trustee') ||
+          elected.type.toLowerCase() === 'trustee' ||
           elected.type.toLowerCase() === 'trustees'
         );
       });
-      
+
       // Also add elected members that are not already included (in case merging failed)
       const additionalElectedTrustees = electedMembers.filter(elected => {
         // If not already in electedTrustees and not in trustees, include if it's an elected member
-        const alreadyIncluded = electedTrustees.some(et => 
-          (et['Membership number'] && elected['Membership number'] && 
-           et['Membership number'] === elected['Membership number']) ||
+        const alreadyIncluded = electedTrustees.some(et =>
+          (et['Membership number'] && elected['Membership number'] &&
+            et['Membership number'] === elected['Membership number']) ||
           (et['S. No.'] && elected['S. No.'] && et['S. No.'] === elected['S. No.']) ||
           (et.elected_id && elected.elected_id && et.elected_id === elected.elected_id)
         );
-        const inTrustees = trustees.some(t => 
-          (t['Membership number'] && elected['Membership number'] && 
-           t['Membership number'] === elected['Membership number']) ||
+        const inTrustees = trustees.some(t =>
+          (t['Membership number'] && elected['Membership number'] &&
+            t['Membership number'] === elected['Membership number']) ||
           (t['S. No.'] && elected['S. No.'] && t['S. No.'] === elected['S. No.'])
         );
         return !alreadyIncluded && !inTrustees && elected.is_elected_member;
       });
-      
+
       // Combine and remove duplicates based on membership number
       const combined = [...trustees, ...electedTrustees, ...additionalElectedTrustees];
-      const unique = combined.filter((item, index, self) => 
-        index === self.findIndex(i => 
+      const unique = combined.filter((item, index, self) =>
+        index === self.findIndex(i =>
           (i['Membership number'] && item['Membership number'] && i['Membership number'] === item['Membership number']) ||
           (i['S. No.'] && item['S. No.'] && i['S. No.'] === item['S. No.']) ||
           (i.elected_id && item.elected_id && i.elected_id === item.elected_id)
         )
       );
-      
+
       return unique;
     } else if (tabId === 'patrons') {
       // Get patrons from allMembers
@@ -320,30 +356,30 @@ const Directory = ({ onNavigate }) => {
         const typeLower = member.type.toLowerCase().trim();
         return typeLower === 'patron' || typeLower === 'patrons';
       });
-      
+
       // Also add elected members who are patrons (merged data already includes member table data)
       const electedPatrons = electedMembers.filter(elected => {
         // Check if this elected member's type indicates they're a patron (from merged member table data)
         return elected.type && (
-          elected.type.toLowerCase().includes('patron') || 
-          elected.type.toLowerCase() === 'patron' || 
+          elected.type.toLowerCase().includes('patron') ||
+          elected.type.toLowerCase() === 'patron' ||
           elected.type.toLowerCase() === 'patrons'
         );
       });
-      
+
       // Combine and remove duplicates based on membership number
       const combined = [...patrons];
       electedPatrons.forEach(elected => {
-        const exists = combined.some(p => 
-          (p['Membership number'] && elected['Membership number'] && 
-           p['Membership number'] === elected['Membership number']) ||
+        const exists = combined.some(p =>
+          (p['Membership number'] && elected['Membership number'] &&
+            p['Membership number'] === elected['Membership number']) ||
           (p['S. No.'] && elected['S. No.'] && p['S. No.'] === elected['S. No.'])
         );
         if (!exists) {
           combined.push(elected);
         }
       });
-      
+
       return combined;
     } else if (tabId === 'committee') {
       // Return unique committee names instead of individual members
@@ -359,8 +395,11 @@ const Directory = ({ onNavigate }) => {
         }));
       return uniqueCommittees;
     } else if (tabId === 'doctors') {
-      // Filter for doctors
-      return allMembers.filter(member => 
+      // Prefer Supabase `opd_schedule` doctors when available
+      if (supaDoctors && supaDoctors.length > 0) return supaDoctors;
+
+      // Fallback: Filter for doctors from members table
+      return allMembers.filter(member =>
         (member.type && (
           member.type.toLowerCase().includes('doctor') ||
           member.type.toLowerCase().includes('medical')
@@ -374,11 +413,11 @@ const Directory = ({ onNavigate }) => {
       return electedMembers;
     } else {
       // For custom member types from Supabase
-      const originalType = memberTypes.find(type => 
+      const originalType = memberTypes.find(type =>
         type.toLowerCase().replace(/\s+/g, '-') === tabId
       );
       if (originalType) {
-        return allMembers.filter(member => 
+        return allMembers.filter(member =>
           member.type && member.type === originalType
         );
       }
@@ -391,33 +430,33 @@ const Directory = ({ onNavigate }) => {
   // Helper function to get profile photo URL for a member
   const getProfilePhoto = (member) => {
     if (!member) return null;
-    
+
     // Try to match by membership number first
     if (member['Membership number'] && profilePhotos[member['Membership number']]) {
       return profilePhotos[member['Membership number']];
     }
-    
+
     // Then try mobile number
     if (member.Mobile && profilePhotos[member.Mobile]) {
       return profilePhotos[member.Mobile];
     }
-    
+
     // Then try S. No.
     if (member['S. No.'] && profilePhotos[member['S. No.']]) {
       return profilePhotos[member['S. No.']];
     }
-    
+
     // Try with user_identifier if available
     if (member.user_identifier && profilePhotos[member.user_identifier]) {
       return profilePhotos[member.user_identifier];
     }
-    
+
     return null;
   };
 
   const filteredMembers = useMemo(() => {
     const q = (searchQuery || '').trim().toLowerCase();
-    
+
     // If we have search query and we're in a relevant tab, fetch profile photos for matching members
     if (q && ['trustees', 'patrons', 'elected', 'all'].includes(directoryTab)) {
       const matchingMembers = membersForTab.filter(item => {
@@ -442,17 +481,17 @@ const Directory = ({ onNavigate }) => {
           return false;
         }
       });
-      
+
       // Fetch profile photos for matching members that don't have them loaded
       const memberIds = matchingMembers
         .filter(member => member['Membership number'] || member.Mobile || member['S. No.'] || member.membership_number_elected)
         .map(member => member['Membership number'] || member.Mobile || member['S. No.'] || member.membership_number_elected)
         .filter(Boolean);
-      
+
       if (memberIds && memberIds.length > 0) {
         // Filter out members that already have photos loaded
         const idsWithoutPhotos = memberIds.filter(id => !profilePhotos[id]);
-        
+
         if (idsWithoutPhotos.length > 0) {
           // Fetch photos for members that don't have them loaded
           getProfilePhotos(idsWithoutPhotos)
@@ -466,10 +505,10 @@ const Directory = ({ onNavigate }) => {
             });
         }
       }
-      
+
       return matchingMembers;
     }
-    
+
     // If no search query, return all members for the tab
     return membersForTab;
   }, [membersForTab, searchQuery, directoryTab, profilePhotos]);
@@ -486,14 +525,14 @@ const Directory = ({ onNavigate }) => {
       const nextPage = (Math.ceil(allMembers.length / itemsPerPage) || 1) + 1;
       const res = await getMembersPage(nextPage, itemsPerPage);
       const newMembers = res.data || [];
-      
+
       // Fetch profile photos for new members if in relevant tabs
       if (['trustees', 'patrons', 'elected'].includes(directoryTab)) {
         const memberIds = newMembers
           .filter(member => member['Membership number'] || member.Mobile || member['S. No.'] || member.membership_number_elected)
           .map(member => member['Membership number'] || member.Mobile || member['S. No.'] || member.membership_number_elected)
           .filter(Boolean);
-        
+
         if (memberIds && memberIds.length > 0) {
           try {
             const photosResponse = await getProfilePhotos(memberIds);
@@ -505,7 +544,7 @@ const Directory = ({ onNavigate }) => {
           }
         }
       }
-      
+
       setAllMembers(prev => [...prev, ...newMembers]);
       if (res.count != null) setTotalMembersCount(res.count);
       setCurrentPage(1);
@@ -517,18 +556,18 @@ const Directory = ({ onNavigate }) => {
   // Ref for the content area to scroll to
   const contentRef = useRef(null);
   const searchTimeoutRef = useRef(null);
-  
+
   // Reset to page 1 when tab or search changes
   useEffect(() => {
     const timer = setTimeout(() => {
       setCurrentPage(1);
     }, 0);
-    
+
     // Scroll to the content area when tab changes
     if (contentRef.current) {
       contentRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-    
+
     return () => clearTimeout(timer);
   }, [directoryTab, searchQuery]);
 
@@ -540,7 +579,7 @@ const Directory = ({ onNavigate }) => {
   }, []);
 
   const containerRef = useRef(null);
-  
+
   // Scroll to top of container when component mounts
   useEffect(() => {
     if (containerRef.current) {
@@ -549,12 +588,15 @@ const Directory = ({ onNavigate }) => {
   }, []);
 
   return (
-    <div className="bg-white min-h-screen pb-10 relative" ref={containerRef}>
+    <div
+      className={`bg-white min-h-screen pb-10 relative${isMenuOpen ? ' overflow-hidden max-h-screen' : ''}`}
+      ref={containerRef}
+    >
       {/* Navbar - Matching Home.jsx */}
-      <div className="bg-white border-gray-200 shadow-sm border-b px-6 py-5 flex items-center justify-between sticky top-0 z-50 mt-6 transition-all duration-300">
+      <div className="bg-white border-gray-200 shadow-sm border-b px-6 py-5 flex items-center justify-between sticky top-0 z-50 mt-6 transition-all duration-300 pointer-events-auto">
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
+          className="p-2 rounded-xl hover:bg-gray-100 transition-colors pointer-events-auto"
         >
           {isMenuOpen ? <X className="h-6 w-6 text-gray-700" /> : <Menu className="h-6 w-6 text-gray-700" />}
         </button>
@@ -580,7 +622,7 @@ const Directory = ({ onNavigate }) => {
         <div className="px-6 py-4">
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
             <p className="text-red-600 font-medium">{error}</p>
-            <button 
+            <button
               onClick={() => {
                 setError(null);
                 loadTabData(directoryTab);
@@ -595,7 +637,7 @@ const Directory = ({ onNavigate }) => {
 
       {/* No loading indicator - UI shows immediately */}
 
-        <Sidebar
+      <Sidebar
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
         onNavigate={onNavigate}
@@ -610,24 +652,24 @@ const Directory = ({ onNavigate }) => {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-800">
-              {directoryTab === 'healthcare' ? 'Healthcare Directory' : 
-               directoryTab === 'doctors' ? 'Doctor Directory' : 
-               directoryTab === 'hospitals' ? 'Hospital Directory' : 
-               directoryTab === 'trustees' ? 'Trustee Directory' : 
-               directoryTab === 'patrons' ? 'Patron Directory' : 
-               directoryTab === 'committee' ? 'Committee Directory' : 
-               directoryTab === 'elected' ? 'Elected Members Directory' : 
-               'Directory'}
+              {directoryTab === 'healthcare' ? 'Healthcare Directory' :
+                directoryTab === 'doctors' ? 'Doctor Directory' :
+                  directoryTab === 'hospitals' ? 'Hospital Directory' :
+                    directoryTab === 'trustees' ? 'Trustee Directory' :
+                      directoryTab === 'patrons' ? 'Patron Directory' :
+                        directoryTab === 'committee' ? 'Committee Directory' :
+                          directoryTab === 'elected' ? 'Elected Members Directory' :
+                            'Directory'}
             </h1>
             <p className="text-gray-500 text-sm font-medium">
-              {directoryTab === 'healthcare' ? 'Find Doctors & Hospitals' : 
-               directoryTab === 'doctors' ? 'Find Healthcare Professionals' : 
-               directoryTab === 'hospitals' ? 'Find Hospitals & Clinics' : 
-               directoryTab === 'trustees' ? 'Find Trustees' : 
-               directoryTab === 'patrons' ? 'Find Patrons' : 
-               directoryTab === 'committee' ? 'Find Committee Members' : 
-               directoryTab === 'elected' ? 'Find Elected Members' : 
-               'Find Members'}
+              {directoryTab === 'healthcare' ? 'Find Doctors & Hospitals' :
+                directoryTab === 'doctors' ? 'Find Healthcare Professionals' :
+                  directoryTab === 'hospitals' ? 'Find Hospitals & Clinics' :
+                    directoryTab === 'trustees' ? 'Find Trustees' :
+                      directoryTab === 'patrons' ? 'Find Patrons' :
+                        directoryTab === 'committee' ? 'Find Committee Members' :
+                          directoryTab === 'elected' ? 'Find Elected Members' :
+                            'Find Members'}
             </p>
           </div>
         </div>
@@ -641,13 +683,13 @@ const Directory = ({ onNavigate }) => {
           </div>
           <input
             type="text"
-            placeholder={`Search in ${directoryTab === 'healthcare' ? 'Healthcare' : 
-                          directoryTab === 'doctors' ? 'Doctors' : 
-                          directoryTab === 'hospitals' ? 'Hospitals' : 
-                          directoryTab === 'trustees' ? 'Trustees' : 
-                          directoryTab === 'patrons' ? 'Patrons' : 
-                          directoryTab === 'committee' ? 'Committee' : 
-                          directoryTab === 'elected' ? 'Elected Members' : 
+            placeholder={`Search in ${directoryTab === 'healthcare' ? 'Healthcare' :
+              directoryTab === 'doctors' ? 'Doctors' :
+                directoryTab === 'hospitals' ? 'Hospitals' :
+                  directoryTab === 'trustees' ? 'Trustees' :
+                    directoryTab === 'patrons' ? 'Patrons' :
+                      directoryTab === 'committee' ? 'Committee' :
+                        directoryTab === 'elected' ? 'Elected Members' :
                           'All'} directory...`}
             value={searchQuery}
             onChange={(e) => {
@@ -668,11 +710,10 @@ const Directory = ({ onNavigate }) => {
             <button
               key={tab.id}
               onClick={() => setDirectoryTab(tab.id)}
-              className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold whitespace-nowrap transition-all text-xs tracking-tight ${
-                directoryTab === tab.id
+              className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold whitespace-nowrap transition-all text-xs tracking-tight ${directoryTab === tab.id
                   ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100 border border-indigo-600'
                   : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 hover:border-gray-300'
-              }`}
+                }`}
             >
               <tab.icon className={`h-4 w-4 ${directoryTab === tab.id ? 'text-white' : 'text-indigo-600'}`} />
               {tab.label}
@@ -686,8 +727,8 @@ const Directory = ({ onNavigate }) => {
       <div className="px-6 mt-2 space-y-4" ref={contentRef}>
         {currentPageMembers.length > 0 ? (
           currentPageMembers.map((item) => (
-            <div 
-              key={item['S. No.'] || item.id || item['Membership number'] || `member-${item.Name || 'unknown'}`} 
+            <div
+              key={item['S. No.'] || item.id || item['Membership number'] || `member-${item.Name || 'unknown'}`}
               className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center gap-4 group hover:shadow-md hover:border-indigo-100 transition-all cursor-pointer"
               onClick={() => {
                 // Check if this is a committee group (committee name)
@@ -695,12 +736,12 @@ const Directory = ({ onNavigate }) => {
                   // Load full committee members if not already loaded, then navigate
                   const loadAndNavigate = async () => {
                     let membersToUse = committeeMembers;
-                    
+
                     // If committee members not fully loaded, load them now
-                    if (committeeMembers.length === 0 || 
-                        !committeeMembers.some(cm => 
-                          (cm.committee_name_hindi === item.Name || cm.committee_name_english === item.Name)
-                        )) {
+                    if (committeeMembers.length === 0 ||
+                      !committeeMembers.some(cm =>
+                        (cm.committee_name_hindi === item.Name || cm.committee_name_english === item.Name)
+                      )) {
                       try {
                         const committeeRes = await getAllCommitteeMembers();
                         membersToUse = committeeRes?.data || [];
@@ -709,14 +750,14 @@ const Directory = ({ onNavigate }) => {
                         console.error('Error loading committee members:', err);
                       }
                     }
-                    
+
                     // Filter members for this specific committee
-                    const filteredCommitteeMembers = membersToUse.filter(cm => 
-                      cm.committee_name_hindi === item.Name || 
+                    const filteredCommitteeMembers = membersToUse.filter(cm =>
+                      cm.committee_name_hindi === item.Name ||
                       cm.committee_name_english === item.Name ||
                       cm['Company Name'] === item.Name
                     );
-                    
+
                     const committeeData = {
                       'Name': item.Name,
                       'type': 'Committee',
@@ -725,31 +766,31 @@ const Directory = ({ onNavigate }) => {
                       'committee_name_english': item.committee_name_english || item.Name,
                       'is_committee_group': true
                     };
-                    
+
                     // Add the current tab name for back button
                     committeeData.previousScreenName = directoryTab;
-                    
+
                     onNavigate('committee-members', committeeData);
                   };
-                  
+
                   loadAndNavigate();
                 } else {
                   // Determine if this is a healthcare member (from opd_schedule)
-                  const isHealthcareMember = !!item.consultant_name || 
-                                  (item.original_id && item.original_id.toString().startsWith('DOC')) ||
-                                  (item['S. No.'] && item['S. No.'].toString().startsWith('DOC'));
-                  
+                  const isHealthcareMember = !!item.consultant_name ||
+                    (item.original_id && item.original_id.toString().startsWith('DOC')) ||
+                    (item['S. No.'] && item['S. No.'].toString().startsWith('DOC'));
+
                   // Determine if this is a hospital member (from hospitals table)
-                  const isHospitalMember = !!item.is_hospital || 
-                                        (item.original_id && item.original_id.toString().startsWith('HOSP')) ||
-                                        (item['S. No.'] && item['S. No.'].toString().startsWith('HOSP'));
-                  
+                  const isHospitalMember = !!item.is_hospital ||
+                    (item.original_id && item.original_id.toString().startsWith('HOSP')) ||
+                    (item['S. No.'] && item['S. No.'].toString().startsWith('HOSP'));
+
                   // Determine if this is an elected member (from elected_members table)
                   const isElectedMember = !!item.is_elected_member ||
-                                      (item.elected_id !== undefined && item.elected_id !== null) ||
-                                      (item.original_id && item.original_id.toString().startsWith('ELECT')) ||
-                                      (item['S. No.'] && item['S. No.'].toString().startsWith('ELECT'));
-                  
+                    (item.elected_id !== undefined && item.elected_id !== null) ||
+                    (item.original_id && item.original_id.toString().startsWith('ELECT')) ||
+                    (item['S. No.'] && item['S. No.'].toString().startsWith('ELECT'));
+
                   // Create member data based on the source
                   const memberData = {
                     'S. No.': item['S. No.'] || item.original_id || `MEM${Math.floor(Math.random() * 10000)}`,
@@ -762,7 +803,7 @@ const Directory = ({ onNavigate }) => {
                     'isHospitalMember': isHospitalMember,
                     'isElectedMember': isElectedMember
                   };
-                  
+
                   // Add Members Table fields if NOT a healthcare member and NOT a hospital member
                   // OR if it's an elected member (since elected members are merged with Members Table)
                   if ((!isHealthcareMember && !isHospitalMember) || isElectedMember) {
@@ -772,7 +813,7 @@ const Directory = ({ onNavigate }) => {
                     if (item['Resident Landline']) memberData['Resident Landline'] = item['Resident Landline'];
                     if (item['Office Landline']) memberData['Office Landline'] = item['Office Landline'];
                   }
-                  
+
                   // Add hospital-specific fields (from hospitals table) only if it's a hospital member
                   if (isHospitalMember) {
                     memberData.hospital_name = item.hospital_name || 'N/A';
@@ -792,7 +833,7 @@ const Directory = ({ onNavigate }) => {
                     memberData.is_active = item.is_active || 'N/A';
                     memberData.id = item.original_id || null;
                   }
-                  
+
                   // Add healthcare-specific fields (from opd_schedule) only if it's a healthcare member
                   if (isHealthcareMember) {
                     memberData.department = item.department || 'N/A';
@@ -807,7 +848,7 @@ const Directory = ({ onNavigate }) => {
                     memberData.notes = item.notes || item.unit_notes || 'N/A';
                     memberData.id = item.id || item.original_id || null;
                   }
-                  
+
                   // Add elected members-specific fields (from elected_members table) only if it's an elected member
                   if (isElectedMember) {
                     // Elected-specific fields from elected_members table
@@ -819,33 +860,44 @@ const Directory = ({ onNavigate }) => {
                     memberData.is_merged_with_member = item.is_merged_with_member || false;
                     // Note: name, mobile, email, address fields already come from merged Members Table data
                   }
-                  
+
                   // Add the current tab name for back button
                   memberData.previousScreenName = directoryTab;
-                  
+
                   // Store the current directory tab in sessionStorage to restore when coming back
                   sessionStorage.setItem('restoreDirectoryTab', directoryTab);
-                  
+
                   onNavigate('member-details', memberData);
                 }
               }}
             >
               <div className="bg-indigo-50 h-16 w-16 rounded-2xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300 overflow-hidden">
-                {directoryTab === 'committee' || directoryTab === 'trustees' || directoryTab === 'patrons' || directoryTab === 'elected' ? (
+                {/* Prefer explicit doctor image if provided by Supabase */}
+                {item.doctor_image_url ? (
+                  <img
+                    src={item.doctor_image_url}
+                    alt={item.consultant_name || item.Name || 'Doctor'}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(item.consultant_name || item.Name || 'Doctor')}&background=6366f1&color=fff&size=128`;
+                    }}
+                  />
+                ) : directoryTab === 'committee' || directoryTab === 'trustees' || directoryTab === 'patrons' || directoryTab === 'elected' ? (
                   // Try to find profile photo for this member
                   (() => {
                     const memberId = item['Membership number'] || item.Mobile || item['S. No.'] || item.membership_number_elected;
                     const profilePhoto = profilePhotos[memberId];
-                    
+
                     if (profilePhoto) {
                       return (
-                        <img 
-                          src={profilePhoto} 
-                          alt="Profile" 
+                        <img
+                          src={profilePhoto}
+                          alt={item.Name || 'Member'}
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             e.target.onerror = null;
-                            e.target.src = `https://ui-avatars.com/api/?name=${item.Name || 'Member'}&background=6366f1&color=fff&size=128`;
+                            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(item.Name || 'Member')}&background=6366f1&color=fff&size=128`;
                           }}
                         />
                       );
@@ -853,14 +905,17 @@ const Directory = ({ onNavigate }) => {
                       return <User className="h-7 w-7" />;
                     }
                   })()
-                ) : 
-                 directoryTab === 'hospitals' ? <Building2 className="h-7 w-7" /> : <Stethoscope className="h-7 w-7" />}
+                ) : directoryTab === 'hospitals' ? (
+                  <Building2 className="h-7 w-7" />
+                ) : (
+                  <Stethoscope className="h-7 w-7" />
+                )}
               </div>
               <div className="flex-1">
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="font-bold text-gray-800 text-base leading-tight group-hover:text-indigo-600 transition-colors">
-                      {item.Name || 'N/A'}
+                      {item.consultant_name || item.Name || item.hospital_name || 'N/A'}
                     </h3>
                     <div className="flex flex-col gap-1 mt-1">
                       {item['Membership number'] && (
@@ -894,11 +949,11 @@ const Directory = ({ onNavigate }) => {
                     </div>
                   </div>
                 </div>
-                                  
+
                 <div className="flex items-center gap-3 mt-4 flex-wrap">
                   {item.Mobile && (
-                    <a 
-                      href={`tel:${item.Mobile.replace(/\s+/g, '').split(',')[0]}`} 
+                    <a
+                      href={`tel:${item.Mobile.replace(/\s+/g, '').split(',')[0]}`}
                       className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-all text-xs font-semibold border border-gray-100"
                     >
                       <Phone className="h-3.5 w-3.5" />
@@ -906,8 +961,8 @@ const Directory = ({ onNavigate }) => {
                     </a>
                   )}
                   {item.Email && item.Email.trim() && (
-                    <a 
-                      href={`mailto:${item.Email.trim()}`} 
+                    <a
+                      href={`mailto:${item.Email.trim()}`}
                       className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-all text-xs font-semibold border border-gray-100"
                     >
                       <Mail className="h-3.5 w-3.5" />
@@ -961,11 +1016,10 @@ const Directory = ({ onNavigate }) => {
                 <button
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage === 1}
-                  className={`p-2.5 rounded-xl transition-all shadow-sm ${
-                    currentPage === 1
+                  className={`p-2.5 rounded-xl transition-all shadow-sm ${currentPage === 1
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       : 'bg-white text-indigo-600 hover:bg-indigo-50 hover:shadow-md border border-indigo-200'
-                  }`}
+                    }`}
                 >
                   <ChevronLeft className="h-5 w-5" />
                 </button>
@@ -988,17 +1042,16 @@ const Directory = ({ onNavigate }) => {
                       <button
                         key={pageNum}
                         onClick={() => setCurrentPage(pageNum)}
-                        className={`w-10 h-10 rounded-xl font-bold text-sm transition-all shadow-sm ${
-                          currentPage === pageNum
+                        className={`w-10 h-10 rounded-xl font-bold text-sm transition-all shadow-sm ${currentPage === pageNum
                             ? 'bg-indigo-600 text-white shadow-md scale-105'
                             : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200'
-                        }`}
+                          }`}
                       >
                         {pageNum}
                       </button>
                     );
                   })}
-                  
+
                   {totalPages > 5 && currentPage < totalPages - 2 && (
                     <>
                       <span className="px-2 text-gray-400 font-bold">...</span>
@@ -1016,16 +1069,15 @@ const Directory = ({ onNavigate }) => {
                 <button
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={currentPage === totalPages}
-                  className={`p-2.5 rounded-xl transition-all shadow-sm ${
-                    currentPage === totalPages
+                  className={`p-2.5 rounded-xl transition-all shadow-sm ${currentPage === totalPages
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       : 'bg-white text-indigo-600 hover:bg-indigo-50 hover:shadow-md border border-indigo-200'
-                  }`}
+                    }`}
                 >
                   <ChevronRight className="h-5 w-5" />
                 </button>
               </div>
-              
+
               {/* Showing Text Below Buttons */}
               <div className="text-sm text-gray-700 font-medium text-center">
                 Showing <span className="font-bold text-indigo-600">{startIndex + 1}</span> to{' '}

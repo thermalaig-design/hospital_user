@@ -115,14 +115,14 @@ function SpecialOTPVerification() {
             <button 
               type="button"
               onClick={handleBack}
-              className="flex-1 bg-gray-200 text-gray-800 py-4 rounded-2xl font-bold text-base hover:bg-gray-300 transition-colors active:scale-[0.98]"
+              className="flex-1 bg-gray-200 text-gray-800 py-4 rounded-2xl font-bold text-sm hover:bg-gray-300 transition-colors active:scale-[0.98]"
             >
               Back
             </button>
             <button 
               type="submit" 
               disabled={loading || passcode.length !== 6}
-              className="flex-1 bg-indigo-600 text-white py-4 rounded-2xl font-bold text-base shadow-lg hover:bg-indigo-700 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+              className="flex-1 bg-indigo-600 text-white py-4 rounded-2xl font-bold text-sm shadow-lg hover:bg-indigo-700 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
             >
               {loading ? 'Verifying...' : 'Verify Passcode'}
             </button>

@@ -12,6 +12,11 @@
       "launchAutoHide": true,
       "showSpinner": false,
       "fadeOutDuration": 500
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_icon_config_sample",
+      "iconColor": "#4F46E5",
+      "sound": "beep.wav"
     }
   },
   "android": {

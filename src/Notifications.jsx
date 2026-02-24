@@ -11,9 +11,9 @@ const Notifications = ({ onNavigate }) => {
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
-  // Scroll locking when sidebar is open
+  // Scroll locking when sidebar is open or notification modal is open
   useEffect(() => {
-    if (isMenuOpen) {
+    if (isMenuOpen || showDetailModal) {
       const scrollY = window.scrollY;
       document.documentElement.style.overflow = 'hidden';
       document.body.style.overflow = 'hidden';
@@ -21,6 +21,21 @@ const Notifications = ({ onNavigate }) => {
       document.body.style.width = '100%';
       document.body.style.top = `-${scrollY}px`;
       document.body.style.touchAction = 'none';
+
+      // Prevent scrolling
+      const preventScroll = (e) => {
+        if (e.type === 'wheel' || e.type === 'touchmove') {
+          e.preventDefault();
+        }
+      };
+
+      document.addEventListener('wheel', preventScroll, { passive: false });
+      document.addEventListener('touchmove', preventScroll, { passive: false });
+
+      return () => {
+        document.removeEventListener('wheel', preventScroll);
+        document.removeEventListener('touchmove', preventScroll);
+      };
     } else {
       const scrollY = parseInt(document.body.style.top || '0') * -1;
       document.documentElement.style.overflow = 'unset';
@@ -39,7 +54,7 @@ const Notifications = ({ onNavigate }) => {
       document.body.style.top = 'unset';
       document.body.style.touchAction = 'auto';
     };
-  }, [isMenuOpen]);
+  }, [isMenuOpen, showDetailModal]);
 
   // Load notifications on component mount
   useEffect(() => {
@@ -85,8 +100,8 @@ const Notifications = ({ onNavigate }) => {
     try {
       await markNotificationAsRead(id);
       // Update the notification locally
-      setNotifications(prev => 
-        prev.map(notif => 
+      setNotifications(prev =>
+        prev.map(notif =>
           notif.id === id ? { ...notif, is_read: true } : notif
         )
       );
@@ -100,16 +115,16 @@ const Notifications = ({ onNavigate }) => {
       // Mark as read when clicked
       if (!notification.is_read) {
         await markNotificationAsRead(notification.id);
-        setNotifications(prev => 
-          prev.map(notif => 
+        setNotifications(prev =>
+          prev.map(notif =>
             notif.id === notification.id ? { ...notif, is_read: true } : notif
           )
         );
       }
-      
+
       // Extract appointment ID from notification message
       const appointmentId = extractAppointmentId(notification.message);
-      
+
       // Show detailed modal
       setSelectedNotification({ ...notification, appointmentId });
       setShowDetailModal(true);
@@ -132,7 +147,7 @@ const Notifications = ({ onNavigate }) => {
     try {
       await markAllNotificationsAsRead();
       // Update all notifications locally
-      setNotifications(prev => 
+      setNotifications(prev =>
         prev.map(notif => ({ ...notif, is_read: true }))
       );
     } catch (err) {
@@ -143,12 +158,12 @@ const Notifications = ({ onNavigate }) => {
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
-    <div className="bg-gray-50 min-h-screen pb-10 relative">
-        {/* Navbar */}
-      <div className="bg-white border-gray-200 shadow-sm border-b px-4 sm:px-6 py-5 flex items-center justify-between sticky top-0 z-50 mt-6 transition-all duration-300">
+    <div className={`bg-gray-50 min-h-screen pb-10 relative${isMenuOpen ? ' overflow-hidden max-h-screen' : ''}`}>
+      {/* Navbar */}
+      <div className="bg-white border-gray-200 shadow-sm border-b px-4 sm:px-6 py-5 flex items-center justify-between sticky top-0 z-50 mt-6 transition-all duration-300 pointer-events-auto">
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
+          className="p-2 rounded-xl hover:bg-gray-100 transition-colors pointer-events-auto"
         >
           {isMenuOpen ? <X className="h-6 w-6 text-gray-700" /> : <Menu className="h-6 w-6 text-gray-700" />}
         </button>
@@ -188,7 +203,7 @@ const Notifications = ({ onNavigate }) => {
             {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
           </div>
           {unreadCount > 0 && (
-            <button 
+            <button
               onClick={handleMarkAllAsRead}
               className="text-xs text-indigo-600 font-semibold hover:text-indigo-700"
             >
@@ -222,7 +237,7 @@ const Notifications = ({ onNavigate }) => {
             </div>
             <h3 className="font-bold text-red-800 mb-1">Error Loading Notifications</h3>
             <p className="text-red-600 text-sm">{error}</p>
-            <button 
+            <button
               onClick={fetchNotifications}
               className="mt-4 px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 transition-colors"
             >
@@ -243,7 +258,7 @@ const Notifications = ({ onNavigate }) => {
             <p className="text-gray-500 text-sm">
               You'll see important updates here when they arrive
             </p>
-            <button 
+            <button
               onClick={() => onNavigate('home')}
               className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors"
             >
@@ -257,12 +272,11 @@ const Notifications = ({ onNavigate }) => {
       {!loading && !error && notifications.length > 0 && (
         <div className="px-6 py-4 space-y-4">
           {notifications.map((notification) => (
-            <div 
+            <div
               key={notification.id}
               onClick={() => handleNotificationClick(notification)}
-              className={`bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md hover:border-indigo-100 transition-all cursor-pointer ${
-                !notification.is_read ? 'border-l-4 border-l-indigo-600 bg-indigo-50/30' : ''
-              }`}
+              className={`bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md hover:border-indigo-100 transition-all cursor-pointer ${!notification.is_read ? 'border-l-4 border-l-indigo-600 bg-indigo-50/30' : ''
+                }`}
             >
               <div className="flex items-start justify-between mb-2">
                 <h4 className={`font-semibold text-gray-900 ${!notification.is_read ? 'font-bold' : ''}`}>
@@ -274,18 +288,18 @@ const Notifications = ({ onNavigate }) => {
                   </div>
                 )}
               </div>
-              
+
               <p className="text-gray-600 text-sm leading-relaxed mb-3">
                 {notification.message}
               </p>
-              
+
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-400 font-medium">
                   {new Date(notification.created_at).toLocaleDateString()} at {new Date(notification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
-                
+
                 {!notification.is_read && (
-                  <button 
+                  <button
                     onClick={(e) => {
                       e.stopPropagation();
                       handleMarkAsRead(notification.id);
@@ -301,32 +315,32 @@ const Notifications = ({ onNavigate }) => {
           ))}
         </div>
       )}
-    
+
       {/* Detailed Notification Modal */}
       {showDetailModal && selectedNotification && (
-        <div className="fixed inset-0 z-[100] bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[999] bg-black/60 flex items-center justify-center p-4" onClick={closeDetailModal}>
+          <div className="bg-white rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] max-w-md w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-gray-900">Notification Details</h3>
-                <button 
+                <button
                   onClick={closeDetailModal}
                   className="p-1 rounded-full hover:bg-gray-100"
                 >
                   <X className="h-5 w-5 text-gray-500" />
                 </button>
               </div>
-              
+
               <div className="space-y-4">
                 <div className="p-4 bg-indigo-50 rounded-xl">
                   <h4 className="font-semibold text-indigo-800 mb-2">{selectedNotification.title}</h4>
                   <p className="text-gray-700 whitespace-pre-line">{selectedNotification.message}</p>
                 </div>
-                
+
                 {selectedNotification.type === 'appointment_update' && (
                   <div className="border-t border-gray-100 pt-4">
                     <h5 className="font-semibold text-gray-800 mb-3">Appointment Details</h5>
-                    
+
                     <div className="space-y-3">
                       {extractPatientName(selectedNotification.message) && (
                         <div className="flex items-start">
@@ -337,7 +351,7 @@ const Notifications = ({ onNavigate }) => {
                           </div>
                         </div>
                       )}
-                      
+
                       {extractDateTime(selectedNotification.message) && (
                         <div className="flex items-start">
                           <Calendar className="h-5 w-5 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
@@ -347,7 +361,7 @@ const Notifications = ({ onNavigate }) => {
                           </div>
                         </div>
                       )}
-                      
+
                       {extractDoctorName(selectedNotification.message) && (
                         <div className="flex items-start">
                           <Stethoscope className="h-5 w-5 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
@@ -357,7 +371,7 @@ const Notifications = ({ onNavigate }) => {
                           </div>
                         </div>
                       )}
-                      
+
                       {extractDepartment(selectedNotification.message) && (
                         <div className="flex items-start">
                           <Building2 className="h-5 w-5 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
@@ -370,11 +384,11 @@ const Notifications = ({ onNavigate }) => {
                     </div>
                   </div>
                 )}
-                
+
                 {selectedNotification.type === 'referral_update' && (
                   <div className="border-t border-gray-100 pt-4">
                     <h5 className="font-semibold text-gray-800 mb-3">Referral Details</h5>
-                    
+
                     <div className="space-y-3">
                       {extractPatientName(selectedNotification.message) && (
                         <div className="flex items-start">
@@ -385,7 +399,7 @@ const Notifications = ({ onNavigate }) => {
                           </div>
                         </div>
                       )}
-                      
+
                       {extractDoctorName(selectedNotification.message) && (
                         <div className="flex items-start">
                           <Stethoscope className="h-5 w-5 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
@@ -395,7 +409,7 @@ const Notifications = ({ onNavigate }) => {
                           </div>
                         </div>
                       )}
-                      
+
                       {extractDepartment(selectedNotification.message) && (
                         <div className="flex items-start">
                           <Building2 className="h-5 w-5 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
@@ -405,7 +419,7 @@ const Notifications = ({ onNavigate }) => {
                           </div>
                         </div>
                       )}
-                      
+
                       {extractCategory(selectedNotification.message) && (
                         <div className="flex items-start">
                           <FileText className="h-5 w-5 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
@@ -418,7 +432,7 @@ const Notifications = ({ onNavigate }) => {
                     </div>
                   </div>
                 )}
-                
+
                 <div className="flex justify-end pt-4">
                   <button
                     onClick={closeDetailModal}
@@ -441,11 +455,11 @@ const extractPatientName = (message) => {
   // Pattern: 👤 Patient: [Name]
   const match = message.match(/👤 Patient:\s*([^\n]+)/i);
   if (match) return match[1].trim();
-  
+
   // Pattern: Hello [Name],
   const helloMatch = message.match(/Hello\s+([^,]+),/i);
   if (helloMatch) return helloMatch[1].trim();
-  
+
   return null;
 };
 
@@ -453,11 +467,11 @@ const extractDoctorName = (message) => {
   // Pattern: 👨‍⚕️ Doctor: Dr. [Name] or 👨‍⚕️ Referred To: Dr. [Name]
   const doctorMatch = message.match(/👨‍⚕️\s+(?:Doctor|Referred To):\s*Dr\.\s*([^\n]+)/i);
   if (doctorMatch) return 'Dr. ' + doctorMatch[1].trim();
-  
+
   // Pattern: with Dr. [Name]
   const withMatch = message.match(/with\s+Dr\.\s*([^\s]+(?:\s+[^\s]+)*)/i);
   if (withMatch) return 'Dr. ' + withMatch[1].trim();
-  
+
   return null;
 };
 
@@ -466,10 +480,10 @@ const formatDate = (dateStr) => {
     // Handle YYYY-MM-DD format
     if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
       const date = new Date(dateStr + 'T00:00:00');
-      return date.toLocaleDateString('en-IN', { 
-        weekday: 'short', 
-        day: 'numeric', 
-        month: 'short', 
+      return date.toLocaleDateString('en-IN', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
         year: 'numeric'
       });
     }
@@ -484,7 +498,7 @@ const extractDateTime = (message) => {
   // Pattern: ➡️ New Date & Time: [date] [time]
   const previousMatch = message.match(/📅\s*Previous\s+Date\s+&\s+Time:\s*([^\n]+)/i);
   const newMatch = message.match(/➡️\s*New\s+Date\s+&\s+Time:\s*([^\n]+)/i);
-  
+
   if (previousMatch && newMatch) {
     const prevParts = previousMatch[1].trim().split(/\s+/);
     const newParts = newMatch[1].trim().split(/\s+/);
@@ -492,21 +506,21 @@ const extractDateTime = (message) => {
     const prevTime = prevParts.slice(1).join(' ');
     const newDate = newParts[0];
     const newTime = newParts.slice(1).join(' ');
-    
+
     return `Previous: ${formatDate(prevDate)} ${prevTime}\nNew: ${formatDate(newDate)} ${newTime}`;
   }
-  
+
   // Pattern: 📅 Appointment Date: [date]
   // Pattern: 🕐 Appointment Time: [time]
   const dateMatch = message.match(/📅\s*Appointment\s+Date:\s*([^\n]+)/i);
   const timeMatch = message.match(/🕐\s*Appointment\s+Time:\s*([^\n]+)/i);
-  
+
   if (dateMatch && timeMatch) {
     return `${formatDate(dateMatch[1].trim())} at ${timeMatch[1].trim()}`;
   } else if (dateMatch) {
     return formatDate(dateMatch[1].trim());
   }
-  
+
   return null;
 };
 

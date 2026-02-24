@@ -5,29 +5,29 @@ import Sidebar from './components/Sidebar';
 const Notices = ({ onNavigate }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const allNotices = [
-    { 
-      id: 2, 
-      title: 'New Equipment Installation', 
+    {
+      id: 2,
+      title: 'New Equipment Installation',
       message: 'New MRI machines are being installed in the radiology department. Please expect some noise.',
-      date: '2024-12-28', 
+      date: '2024-12-28',
       priority: 'normal',
       icon: Building2,
       tag: 'Infrastructure'
     },
-    { 
-      id: 3, 
-      title: 'Annual Health Camp', 
+    {
+      id: 3,
+      title: 'Annual Health Camp',
       message: 'Our annual free health camp will be organized on 5th Jan. Volunteers are requested to register.',
-      date: '2024-12-25', 
+      date: '2024-12-25',
       priority: 'normal',
       icon: Stethoscope,
       tag: 'Health Camp'
     },
-    { 
-      id: 4, 
-      title: 'Holiday Notice', 
+    {
+      id: 4,
+      title: 'Holiday Notice',
       message: 'The hospital administrative office will remain closed on 1st Jan for New Year.',
-      date: '2024-12-24', 
+      date: '2024-12-24',
       priority: 'low',
       icon: Bell,
       tag: 'Admin'
@@ -65,12 +65,12 @@ const Notices = ({ onNavigate }) => {
   }, [isMenuOpen]);
 
   return (
-    <div className="bg-white min-h-screen pb-10 relative">
+    <div className={`bg-white min-h-screen pb-10 relative${isMenuOpen ? ' overflow-hidden max-h-screen' : ''}`}>
       {/* Navbar */}
-      <div className="bg-white border-b border-gray-200 px-6 py-5 flex items-center justify-between sticky top-0 z-50 shadow-sm mt-6">
+      <div className="bg-white border-b border-gray-200 px-6 py-5 flex items-center justify-between sticky top-0 z-50 shadow-sm mt-6 pointer-events-auto">
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
+          className="p-2 rounded-xl hover:bg-gray-100 transition-colors pointer-events-auto"
         >
           {isMenuOpen ? <X className="h-6 w-6 text-gray-700" /> : <Menu className="h-6 w-6 text-gray-700" />}
         </button>
@@ -85,7 +85,7 @@ const Notices = ({ onNavigate }) => {
 
       {/* Backdrop for sidebar */}
       {isMenuOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-0 z-25 lg:hidden"
           onClick={() => setIsMenuOpen(false)}
           style={{ pointerEvents: 'auto' }}
@@ -125,15 +125,15 @@ const Notices = ({ onNavigate }) => {
                 {notice.date}
               </div>
             </div>
-            
+
             <h3 className="font-bold text-gray-800 text-lg mb-2 leading-tight">
               {notice.title}
             </h3>
-            
+
             <p className="text-gray-600 text-sm leading-relaxed">
               {notice.message}
             </p>
-            
+
             <div className="mt-4 pt-4 border-t border-gray-50 flex justify-end">
               <button className="text-indigo-600 text-xs font-bold flex items-center gap-1 hover:underline transition-all">
                 Read Full Detail <ArrowRight className="h-3 w-3" />

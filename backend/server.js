@@ -15,6 +15,7 @@ import profileRoutes from './routes/profileRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import sponsorRoutes from './routes/sponsorRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
+import galleryRoutes from './routes/galleryRoutes.js';
 
 // ES module fix for __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -118,6 +119,7 @@ app.use('/api/referrals', referralRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/sponsors', sponsorRoutes); // Sponsor routes
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/gallery', galleryRoutes); // Gallery routes
 app.use('/api/admin', adminRoutes); // Admin routes
 app.use('/api', memberRoutes); // Member routes last to avoid catching other routes
 // --------------------
