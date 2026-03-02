@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Users, LogOut, Menu, X, Home as HomeIcon, UserCircle } from 'lucide-react';
+import { Shield, Users, LogOut, Menu, X, Home as HomeIcon, UserCircle, MessageSquare } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import AdminDirectory from './AdminDirectory';
+import SendMessagePage from './SendMessagePage';
 import { getProfile } from '../services/api';
 
 const AdminPanel = ({ onNavigate, onLogout }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
+  const [currentView, setCurrentView] = useState('directory'); // 'directory' | 'send-message'
 
   // Scroll locking when sidebar is open
   useEffect(() => {
@@ -46,7 +48,7 @@ const AdminPanel = ({ onNavigate, onLogout }) => {
         try {
           const parsedUser = JSON.parse(user);
           const userId = parsedUser['Membership number'] || parsedUser.mobile || parsedUser.id;
-          
+
           if (userId) {
             // Try to load from Supabase
             try {
@@ -63,7 +65,7 @@ const AdminPanel = ({ onNavigate, onLogout }) => {
               console.error('Error loading from Supabase:', error);
             }
           }
-          
+
           // Fallback to localStorage
           const userKey = `userProfile_${parsedUser.Mobile || parsedUser.mobile || parsedUser.id || 'default'}`;
           const savedProfile = localStorage.getItem(userKey);
@@ -75,7 +77,7 @@ const AdminPanel = ({ onNavigate, onLogout }) => {
         }
       }
     };
-    
+
     loadProfile();
   }, []);
 
@@ -94,14 +96,14 @@ const AdminPanel = ({ onNavigate, onLogout }) => {
           <h1 className="text-lg font-bold text-gray-800">Admin Panel</h1>
         </div>
         <div className="flex items-center gap-2">
-          <button 
+          <button
             onClick={() => onNavigate('profile')}
             className="p-1 rounded-xl hover:bg-gray-100 transition-colors flex items-center justify-center"
           >
             {userProfile?.profilePhotoUrl ? (
-              <img 
-                src={userProfile.profilePhotoUrl} 
-                alt="Profile" 
+              <img
+                src={userProfile.profilePhotoUrl}
+                alt="Profile"
                 className="h-8 w-8 rounded-lg object-cover border-2 border-indigo-200"
                 onError={(e) => {
                   e.target.onerror = null;
@@ -120,14 +122,25 @@ const AdminPanel = ({ onNavigate, onLogout }) => {
               <UserCircle className="h-7 w-7 text-gray-700" />
             ) : null}
           </button>
-          <button 
+          <button
+            onClick={() => setCurrentView(currentView === 'send-message' ? 'directory' : 'send-message')}
+            className={`p-2 rounded-xl transition-colors flex items-center gap-1 text-xs font-semibold ${currentView === 'send-message'
+                ? 'bg-indigo-600 text-white'
+                : 'hover:bg-gray-100 text-indigo-600'
+              }`}
+            title="Send Notification"
+          >
+            <MessageSquare className="h-4 w-4" />
+            <span className="hidden sm:inline">Send</span>
+          </button>
+          <button
             onClick={() => onNavigate('home')}
             className="p-2 rounded-xl hover:bg-gray-100 transition-colors text-indigo-600"
             title="Go to Home"
           >
             <HomeIcon className="h-5 w-5" />
           </button>
-          <button 
+          <button
             onClick={onLogout}
             className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
           >
@@ -159,8 +172,12 @@ const AdminPanel = ({ onNavigate, onLogout }) => {
         </div>
       </div>
 
-      {/* Admin Directory Component */}
-      <AdminDirectory onNavigate={onNavigate} />
+      {/* Main Content */}
+      {currentView === 'send-message' ? (
+        <SendMessagePage onBack={() => setCurrentView('directory')} />
+      ) : (
+        <AdminDirectory onNavigate={onNavigate} />
+      )}
     </div>
   );
 };

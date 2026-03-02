@@ -33,7 +33,7 @@ const ROUTE_HIERARCHY = {
   '/otp-verification': { parent: '/login', label: 'OTP Verification' },
   '/special-otp-verification': { parent: '/login', label: 'Special OTP' },
   '/profile': { parent: '/', label: 'Profile' },
-  
+
   // Main Features - All go back to home
   '/directory': { parent: '/', label: 'Directory' },
   '/member-details': { parent: '/directory', label: 'Member Details' },
@@ -85,33 +85,8 @@ export const NavigationProvider = ({ children }) => {
     locationRef.current = location;
   }, [location]);
 
-  // Persist last visited path so we can restore after app restart
-  useEffect(() => {
-    try {
-      const path = location.pathname;
-      localStorage.setItem('lastVisitedPath', path);
-    } catch (err) {
-      console.warn('Could not persist lastVisitedPath', err);
-    }
-  }, [location.pathname]);
-
-  // On mount, try to restore last visited path (if any)
-  useEffect(() => {
-    try {
-      const last = localStorage.getItem('lastVisitedPath');
-      const current = location.pathname;
-      if (last && last !== current && last !== '/' && last !== '/login' && last !== '/home') {
-        // Set stack so back behavior remains sensible
-        setNavigationStack(['/','' + last]);
-        navigate(last, { replace: true });
-        console.log('🔁 Restored last visited path:', last);
-      }
-    } catch (err) {
-      console.warn('Could not restore lastVisitedPath', err);
-    }
-    // run only once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // NOTE: lastVisitedPath restore removed — it was causing forced navigation
+  // to /appointment from every other page on mount/remount.
 
   useEffect(() => {
     stackRef.current = navigationStack;

@@ -25,6 +25,7 @@ const Sidebar = ({ isOpen, onClose, onNavigate, currentPage }) => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [userData, setUserData] = useState(null);
+  const [shareToast, setShareToast] = useState(false);
 
   // Load profile data when sidebar opens
   useEffect(() => {
@@ -125,7 +126,7 @@ const Sidebar = ({ isOpen, onClose, onNavigate, currentPage }) => {
   const menuItems = [
     { id: 'home', label: 'Home', icon: HomeIcon },
     { id: 'directory', label: 'Directory', icon: Users },
-    { id: 'appointment', label: 'Appointments', icon: Clock },
+    { id: 'appointment', label: 'OPD Schedule', icon: Clock },
     { id: 'reports', label: 'Reports', icon: FileText },
     { id: 'gallery', label: 'Gallery', icon: Image },
     { id: 'reference', label: 'Patient Referral', icon: UserPlus },
@@ -247,27 +248,39 @@ const Sidebar = ({ isOpen, onClose, onNavigate, currentPage }) => {
             {/* Share Button */}
             <button
               onClick={async () => {
+                const APP_URL = 'https://play.google.com/store/apps/details?id=com.maharajaagarsen.app';
+                const shareData = {
+                  title: 'MAH SETU – Maharaja Agrasen Hospital',
+                  text: '🏥 MAH SETU App – Maharaja Agrasen Hospital ka official app. Download karo Google Play Store se:',
+                  url: APP_URL,
+                };
                 try {
                   if (navigator.share) {
-                    await navigator.share({
-                      title: 'Maharaja Agrasen Hospital',
-                      text: 'Maharaja Agrasen Hospital – Trustee & Patron Portal',
-                      url: window.location.origin,
-                    });
+                    await navigator.share(shareData);
                   } else {
-                    await navigator.clipboard.writeText(window.location.origin);
-                    alert('Link copied to clipboard!');
+                    await navigator.clipboard.writeText(`${shareData.text} ${APP_URL}`);
+                    setShareToast(true);
+                    setTimeout(() => setShareToast(false), 2500);
                   }
                 } catch (err) {
                   if (err?.name === 'AbortError') return;
-                  console.error('Share error:', err);
+                  try {
+                    await navigator.clipboard.writeText(APP_URL);
+                    setShareToast(true);
+                    setTimeout(() => setShareToast(false), 2500);
+                  } catch { /* nothing */ }
                 }
               }}
-              className="w-full flex items-center gap-3 px-4 rounded-xl bg-blue-50 text-blue-600 font-semibold active:bg-blue-200 transition-colors active:scale-95 select-none"
+              className="w-full flex items-center gap-3 px-4 rounded-xl bg-blue-50 text-blue-600 font-semibold active:bg-blue-200 transition-colors active:scale-95 select-none relative"
               style={{ minHeight: '48px', WebkitTapHighlightColor: 'rgba(59,130,246,0.08)' }}
             >
               <Share2 className="h-5 w-5 flex-shrink-0" />
               <span>Share App</span>
+              {shareToast && (
+                <span className="absolute right-4 text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full">
+                  Copied!
+                </span>
+              )}
             </button>
 
             {/* Developer Option */}

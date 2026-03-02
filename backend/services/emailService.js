@@ -66,6 +66,10 @@ export const sendAppointmentEmail = async ({
   appointmentId
 }) => {
   try {
+    // Hard disabled by requirement: do not send appointment booking emails.
+    console.log('📧 Appointment booking email is disabled - skipping send');
+    return { messageId: 'appointment-email-disabled', response: 'Appointment booking email disabled' };
+
     // Check if email is disabled
     if (!transporter) {
       console.log('📧 Email notifications are disabled - skipping appointment email');
@@ -82,7 +86,7 @@ export const sendAppointmentEmail = async ({
     const mailOptions = {
       from: {
         name: 'Maharaja Agrasen Hospital',
-        address: process.env.EMAIL_USER || 'thermal.aig@gmail.com'
+        address: process.env.EMAIL_USER || 'no-reply@mahsetu.local'
       },
       to: to,
       subject: `🏥 New Appointment Request - ${patientName}`,
@@ -347,7 +351,7 @@ export const sendPatientConfirmationEmail = async ({
     const mailOptions = {
       from: {
         name: 'Maharaja Agrasen Hospital',
-        address: process.env.EMAIL_USER || 'thermal.aig@gmail.com'
+        address: process.env.EMAIL_USER || 'no-reply@mahsetu.local'
       },
       to: to,
       subject: `✅ Appointment Confirmation - Maharaja Agrasen Hospital`,
@@ -427,7 +431,7 @@ export const sendPatientRejectionEmail = async ({
     const mailOptions = {
       from: {
         name: 'Maharaja Agrasen Hospital',
-        address: process.env.EMAIL_USER || 'thermal.aig@gmail.com'
+        address: process.env.EMAIL_USER || 'no-reply@mahsetu.local'
       },
       to: to,
       subject: `❌ Appointment Request Rejected - Maharaja Agrasen Hospital`,
@@ -503,6 +507,11 @@ export const sendReferralEmail = async ({
       return { messageId: 'email-disabled', response: 'Email notifications disabled' };
     }
 
+    // Email sending to no-reply@mahsetu.local has been disabled
+    console.log('📧 Referral notification would be sent for:', patientName);
+    return { messageId: 'referral-email-disabled', response: 'Referral email notifications disabled' };
+
+    /* Commented out - email to no-reply@mahsetu.local disabled
     const formattedDate = new Date().toLocaleDateString('en-IN', {
       weekday: 'long',
       year: 'numeric',
@@ -513,9 +522,9 @@ export const sendReferralEmail = async ({
     const mailOptions = {
       from: {
         name: 'Maharaja Agrasen Hospital',
-        address: process.env.EMAIL_USER || 'thermal.aig@gmail.com'
+        address: process.env.EMAIL_USER || 'no-reply@mahsetu.local'
       },
-      to: 'thermal.aig@gmail.com', // Always send to this email
+      to: 'no-reply@mahsetu.local', // Disabled - no longer send to this email
       subject: `🩺 New Patient Referral - ${patientName}`,
       html: `
 <!DOCTYPE html>
@@ -788,9 +797,11 @@ Trustee & Patron Portal
     const info = await transporter.sendMail(mailOptions);
     console.log('✅ Referral email sent successfully:', info.messageId);
     return info;
+    */
 
   } catch (error) {
     console.error('❌ Error sending referral email:', error);
     throw error;
   }
 };
+

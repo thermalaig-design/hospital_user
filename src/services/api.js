@@ -1,10 +1,10 @@
 import axios from 'axios';
+import { getCurrentNotificationContext } from './notificationAudience';
 
 
-// Use live backend URL for both development and production
-const API_BASE_URL = import.meta.env.DEV 
-
-  ? 'https://mah.contractmitra.in/api'
+// Use local backend for development, live backend for production
+const API_BASE_URL = import.meta.env.DEV
+  ? 'http://localhost:5002'
   : 'https://mah.contractmitra.in/api';
 
 
@@ -63,7 +63,7 @@ export const searchMembers = async (query, type = null) => {
     const params = new URLSearchParams();
     if (query) params.append('query', query);
     if (type) params.append('type', type);
-    
+
     const response = await api.get(`/members/search?${params}`);
     return response.data;
   } catch (error) {
@@ -132,7 +132,7 @@ export const createReferral = async (referralData) => {
   try {
     const user = localStorage.getItem('user');
     const userId = user ? JSON.parse(user).Mobile || JSON.parse(user).mobile || JSON.parse(user).id : null;
-    
+
     const response = await api.post('/referrals', referralData, {
       headers: {
         'user-id': userId,
@@ -150,7 +150,7 @@ export const getUserReferrals = async () => {
   try {
     const user = localStorage.getItem('user');
     const userId = user ? JSON.parse(user).Mobile || JSON.parse(user).mobile || JSON.parse(user).id : null;
-    
+
     const response = await api.get('/referrals/my-referrals', {
       headers: {
         'user-id': userId
@@ -167,7 +167,7 @@ export const getReferralCounts = async () => {
   try {
     const user = localStorage.getItem('user');
     const userId = user ? JSON.parse(user).Mobile || JSON.parse(user).mobile || JSON.parse(user).id : null;
-    
+
     const response = await api.get('/referrals/counts', {
       headers: {
         'user-id': userId
@@ -184,7 +184,7 @@ export const updateReferral = async (referralId, referralData) => {
   try {
     const user = localStorage.getItem('user');
     const userId = user ? JSON.parse(user).Mobile || JSON.parse(user).mobile || JSON.parse(user).id : null;
-    
+
     const response = await api.patch(`/referrals/${referralId}`, referralData, {
       headers: {
         'user-id': userId,
@@ -202,7 +202,7 @@ export const deleteReferral = async (referralId) => {
   try {
     const user = localStorage.getItem('user');
     const userId = user ? JSON.parse(user).Mobile || JSON.parse(user).mobile || JSON.parse(user).id : null;
-    
+
     const response = await api.delete(`/referrals/${referralId}`, {
       headers: {
         'user-id': userId
@@ -221,11 +221,11 @@ export const getProfile = async () => {
   try {
     const user = localStorage.getItem('user');
     const userId = user ? JSON.parse(user).Mobile || JSON.parse(user).mobile || JSON.parse(user).id : null;
-    
+
     if (!userId) {
       throw new Error('No user found in localStorage');
     }
-    
+
     const response = await api.get('/profile', {
       headers: {
         'user-id': userId
@@ -243,18 +243,18 @@ export const saveProfile = async (profileData, profilePhotoFile) => {
   try {
     const user = localStorage.getItem('user');
     const userId = user ? JSON.parse(user).Mobile || JSON.parse(user).mobile || JSON.parse(user).id : null;
-    
+
     if (!userId) {
       throw new Error('No user found in localStorage');
     }
-    
+
     // Prepare form data
     const formData = new FormData();
     formData.append('profileData', JSON.stringify(profileData));
     if (profilePhotoFile) {
       formData.append('profilePhoto', profilePhotoFile);
     }
-    
+
     const response = await api.post('/profile/save', formData, {
       headers: {
         'user-id': userId
@@ -305,11 +305,11 @@ export const getUserReports = async () => {
   try {
     const user = localStorage.getItem('user');
     const userId = user ? JSON.parse(user).Mobile || JSON.parse(user).mobile || JSON.parse(user).id : null;
-    
+
     if (!userId) {
       throw new Error('No user found in localStorage');
     }
-    
+
     const response = await api.get('/reports', {
       headers: {
         'user-id': userId
@@ -322,68 +322,105 @@ export const getUserReports = async () => {
   }
 };
 
-// Get user notifications
+// Get user notifications — directly from Supabase
 export const getUserNotifications = async () => {
   try {
-    const user = localStorage.getItem('user');
-    const userId = user ? JSON.parse(user).Mobile || JSON.parse(user).mobile || JSON.parse(user).id : null;
-    
+    const { supabase } = await import('./supabaseClient.js');
+    const { userId, userIdVariants, audienceVariants } = getCurrentNotificationContext();
+
     if (!userId) {
       throw new Error('No user found in localStorage');
     }
-    
-    const response = await api.get('/notifications', {
-      headers: {
-        'user-id': userId
-      }
-    });
-    return response.data;
+
+    const { data: userNotifications, error: userNotifError } = await supabase
+      .from('notifications')
+      .select('*')
+      .in('user_id', userIdVariants)
+      .order('created_at', { ascending: false });
+
+    if (userNotifError) throw userNotifError;
+
+    const { data: audienceNotifications, error: audienceError } = await supabase
+      .from('notifications')
+      .select('*')
+      .in('target_audience', audienceVariants)
+      .order('created_at', { ascending: false });
+
+    if (audienceError) throw audienceError;
+
+    const merged = [...(userNotifications || []), ...(audienceNotifications || [])];
+    const unique = [...new Map(merged.map((item) => [item.id, item])).values()];
+    unique.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    return { success: true, data: unique };
   } catch (error) {
     console.error('Error fetching notifications:', error);
-    throw error;
+    return { success: false, message: error.message, data: [] };
   }
 };
 
-// Mark notification as read
+// Mark notification as read — directly via Supabase
 export const markNotificationAsRead = async (id) => {
   try {
-    const user = localStorage.getItem('user');
-    const userId = user ? JSON.parse(user).Mobile || JSON.parse(user).mobile || JSON.parse(user).id : null;
-    
-    if (!userId) {
-      throw new Error('No user found in localStorage');
-    }
-    
-    const response = await api.patch(`/notifications/${id}/read`, {}, {
-      headers: {
-        'user-id': userId
-      }
-    });
-    return response.data;
+    const { supabase } = await import('./supabaseClient.js');
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', id);
+
+    if (error) throw error;
+    return { success: true };
   } catch (error) {
     console.error('Error marking notification as read:', error);
     throw error;
   }
 };
 
-// Mark all notifications as read
+// Mark all notifications as read — directly via Supabase
 export const markAllNotificationsAsRead = async () => {
   try {
-    const user = localStorage.getItem('user');
-    const userId = user ? JSON.parse(user).Mobile || JSON.parse(user).mobile || JSON.parse(user).id : null;
-    
+    const { supabase } = await import('./supabaseClient.js');
+    const { userId, userIdVariants, audienceVariants } = getCurrentNotificationContext();
+
     if (!userId) {
       throw new Error('No user found in localStorage');
     }
-    
-    const response = await api.patch('/notifications/read-all', {}, {
-      headers: {
-        'user-id': userId
-      }
-    });
-    return response.data;
+
+    const { error: userError } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('is_read', false)
+      .in('user_id', userIdVariants);
+
+    if (userError) throw userError;
+
+    const { error: audienceError } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('is_read', false)
+      .in('target_audience', audienceVariants);
+
+    if (audienceError) throw audienceError;
+    return { success: true };
   } catch (error) {
     console.error('Error marking all notifications as read:', error);
+    throw error;
+  }
+};
+
+// Delete/dismiss a specific notification — uses Supabase directly (no backend needed)
+export const deleteNotification = async (id) => {
+  try {
+    const { supabase } = await import('./supabaseClient.js');
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting notification:', error);
     throw error;
   }
 };
@@ -393,11 +430,11 @@ export const uploadUserReport = async (reportData, reportFile) => {
   try {
     const user = localStorage.getItem('user');
     const userId = user ? JSON.parse(user).Mobile || JSON.parse(user).mobile || JSON.parse(user).id : null;
-    
+
     if (!userId) {
       throw new Error('No user found in localStorage');
     }
-    
+
     // Prepare form data
     const formData = new FormData();
     formData.append('reportName', reportData.reportName);
@@ -406,7 +443,7 @@ export const uploadUserReport = async (reportData, reportFile) => {
     if (reportFile) {
       formData.append('reportFile', reportFile);
     }
-    
+
     const response = await api.post('/reports/upload', formData, {
       headers: {
         'user-id': userId
@@ -439,13 +476,13 @@ export const preloadCommonData = async () => {
       getMemberTypes(),
       getAllHospitals()       // Hospitals are typically small dataset
     ]);
-    
+
     const result = {
       membersPreview: membersPreview.status === 'fulfilled' ? membersPreview.value : null,
       memberTypes: memberTypes.status === 'fulfilled' ? memberTypes.value : null,
       hospitals: hospitals.status === 'fulfilled' ? hospitals.value : null
     };
-    
+
     console.log('✅ Preloaded common data for faster directory loading');
     return result;
   } catch (error) {

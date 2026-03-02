@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Users, Clock, FileText, UserPlus, Bell, ChevronRight, Heart, Shield, Plus, ArrowRight, Pill, ShoppingCart, Calendar, Stethoscope, Building2, Phone, QrCode, Monitor, Brain, Package, FileCheck, Search, Filter, MapPin, Star, HelpCircle, BookOpen, Video, Headphones, Menu, X, Home as HomeIcon, Settings, UserCircle, Image } from 'lucide-react';
+import { User, Users, Clock, FileText, UserPlus, Bell, ChevronRight, Heart, Shield, Plus, ArrowRight, Pill, ShoppingCart, Calendar, Stethoscope, Building2, Phone, QrCode, Monitor, Brain, Package, FileCheck, Search, Filter, MapPin, Star, HelpCircle, BookOpen, Video, Headphones, Menu, X, Home as HomeIcon, Settings, UserCircle, Image, Trash2 } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import TermsModal from './components/TermsModal';
 import ImageSlider from './components/ImageSlider';
-import { getProfile, getMarqueeUpdates, getSponsors, getUserNotifications, markNotificationAsRead, markAllNotificationsAsRead } from './services/api';
+import { getProfile, getMarqueeUpdates, getSponsors, getUserNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification } from './services/api';
 import { fetchLatestGalleryImages } from './services/galleryService';
 import { registerSidebarState } from './hooks';
 
@@ -233,9 +233,32 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
     };
 
     fetchNotifications();
+
+    // Re-fetch when App.jsx inserts a birthday notification (fires ~3s after mount)
+    const handleBirthdayInserted = () => {
+      console.log('🎂 Birthday notification inserted — refetching...');
+      fetchNotifications();
+    };
+    window.addEventListener('birthdayNotifInserted', handleBirthdayInserted);
+
+    // Re-fetch when a push notification arrives while the app is in focus
+    const handlePushNotificationArrived = (event) => {
+      console.log('📬 Push notification arrived in foreground — refetching notifications...', event.detail);
+      fetchNotifications();
+    };
+    window.addEventListener('pushNotificationArrived', handlePushNotificationArrived);
+
+    // Fallback: also re-fetch once at 5s to catch anything missed
+    const delayed = setTimeout(fetchNotifications, 5000);
+
     // Poll for new notifications every 30 seconds
     const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(delayed);
+      window.removeEventListener('birthdayNotifInserted', handleBirthdayInserted);
+      window.removeEventListener('pushNotificationArrived', handlePushNotificationArrived);
+    };
   }, []);
 
   const handleMarkAsRead = async (id) => {
@@ -257,6 +280,43 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
       setUnreadCount(0);
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
+    }
+  };
+
+  const handleDismissNotification = async (id) => {
+    try {
+      // Remove the notification from the local state
+      setNotifications(prev => prev.filter(n => n.id !== id));
+      // Update unread count if the dismissed notification was unread
+      setUnreadCount(prev => {
+        const dismissedNotification = notifications.find(n => n.id === id);
+        return dismissedNotification && !dismissedNotification.is_read ? Math.max(0, prev - 1) : prev;
+      });
+
+      // Attempt to delete the notification from the backend
+      try {
+        await deleteNotification(id);
+      } catch (apiError) {
+        console.error('Error deleting notification from backend:', apiError);
+        // If the API call fails, we still remove it from the UI
+      }
+    } catch (error) {
+      console.error('Error dismissing notification:', error);
+    }
+  };
+
+  const handleClearAll = async () => {
+    // Optimistically clear UI immediately
+    const toDelete = [...notifications];
+    setNotifications([]);
+    setUnreadCount(0);
+    setIsNotificationsOpen(false);
+    try {
+      // Delete all notifications from Supabase in parallel
+      await Promise.all(toDelete.map(n => deleteNotification(n.id)));
+    } catch (error) {
+      console.error('Error clearing notifications:', error);
+      // Already cleared from UI — no need to restore
     }
   };
 
@@ -329,7 +389,7 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
 
   const quickActions = [
     { id: 'directory', title: 'Directory', desc: 'Find Doctors & Hospitals', icon: Users, color: 'bg-blue-100', iconColor: 'text-blue-600', screen: 'directory' },
-    { id: 'appointment', title: 'Book Appointment', desc: 'Schedule Doctor Visit', icon: Clock, color: 'bg-indigo-100', iconColor: 'text-indigo-600', screen: 'appointment', memberOnly: true },
+    { id: 'appointment', title: 'OPD Schedule', desc: 'Book OPD Appointment', icon: Clock, color: 'bg-indigo-100', iconColor: 'text-indigo-600', screen: 'appointment', memberOnly: true },
     { id: 'reports', title: 'Reports', desc: 'Medical Test Results', icon: FileText, color: 'bg-orange-100', iconColor: 'text-orange-600', screen: 'reports' },
     { id: 'reference', title: 'Patient Referral', desc: 'Refer Patient to Doctor', icon: UserPlus, color: 'bg-teal-100', iconColor: 'text-teal-600', screen: 'reference' },
   ];
@@ -394,41 +454,67 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
                 <div className="notification-dropdown fixed left-1/2 -translate-x-1/2 top-20 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[100] overflow-hidden">
                   <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                     <h3 className="font-bold text-gray-900">Notifications ({notifications.length})</h3>
-                    {unreadCount > 0 && (
-                      <button
-                        onClick={handleMarkAllAsRead}
-                        className="text-xs text-indigo-600 font-semibold hover:text-indigo-700"
-                      >
-                        Mark all as read
-                      </button>
-                    )}
+                    <div className="flex items-center gap-3">
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={handleMarkAllAsRead}
+                          className="text-xs text-indigo-600 font-semibold hover:text-indigo-700"
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                      {notifications.length > 0 && (
+                        <button
+                          onClick={handleClearAll}
+                          className="flex items-center gap-1 text-xs text-red-500 font-semibold hover:text-red-700"
+                          title="Clear all notifications"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Clear
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div className="max-h-[400px] overflow-y-auto">
                     {notifications.length > 0 ? (
                       notifications.slice(0, 4).map((notification) => (
                         <div
                           key={notification.id}
-                          onClick={() => {
-                            handleMarkAsRead(notification.id);
-                            // Store the notification in sessionStorage to open it on the notifications page
-                            sessionStorage.setItem('initialNotification', JSON.stringify(notification));
-                            setIsNotificationsOpen(false);
-                            onNavigate('notifications');
-                          }}
                           className={`p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer relative ${!notification.is_read ? 'bg-indigo-50/30' : ''}`}
                         >
-                          {!notification.is_read && (
-                            <div className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>
-                          )}
-                          <h4 className={`text-sm font-semibold text-gray-900 mb-0.5 ${!notification.is_read ? 'pr-4' : ''}`}>
-                            {formatNotificationTitle(notification.title, notification.message)}
-                          </h4>
-                          <p className="text-xs text-gray-600 leading-relaxed mb-2">
-                            {formatNotificationMessage(notification.message)}
-                          </p>
-                          <span className="text-[10px] text-gray-400 font-medium">
-                            {new Date(notification.created_at).toLocaleDateString()} at {new Date(notification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
+                          <div
+                            onClick={() => {
+                              handleMarkAsRead(notification.id);
+                              // Store the notification in sessionStorage to open it on the notifications page
+                              sessionStorage.setItem('initialNotification', JSON.stringify(notification));
+                              setIsNotificationsOpen(false);
+                              onNavigate('notifications');
+                            }}
+                            className="cursor-pointer"
+                          >
+                            {!notification.is_read && (
+                              <div className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-indigo-600 rounded-full"></div>
+                            )}
+                            <h4 className={`text-sm font-semibold text-gray-900 mb-0.5 ${!notification.is_read ? 'pr-4' : ''}`}>
+                              {formatNotificationTitle(notification.title, notification.message)}
+                            </h4>
+                            <p className="text-xs text-gray-600 leading-relaxed mb-2">
+                              {formatNotificationMessage(notification.message)}
+                            </p>
+                            <span className="text-[10px] text-gray-400 font-medium">
+                              {new Date(notification.created_at).toLocaleDateString()} at {new Date(notification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDismissNotification(notification.id);
+                            }}
+                            className="absolute top-2 right-2 p-1 rounded-full hover:bg-gray-200 text-gray-500 hover:text-red-500 transition-colors"
+                            title="Dismiss notification"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       ))
                     ) : (

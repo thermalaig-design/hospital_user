@@ -59,3 +59,9 @@ body {
     padding-right: max(0px, var(--safe-area-right));
   }
 }
+
+/* Modal slide-up animation */
+@keyframes slideUp {
+  from { transform: translateY(40px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}

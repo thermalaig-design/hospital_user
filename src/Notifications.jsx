@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Bell, ChevronRight, Home as HomeIcon, Menu, X, Check, Calendar, User, Stethoscope, Clock, MapPin, Building2, FileText } from 'lucide-react';
-import { getUserNotifications, markNotificationAsRead, markAllNotificationsAsRead } from './services/api';
+import { getUserNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification } from './services/api';
+import { supabase } from './services/supabaseClient';
+import { getCurrentNotificationContext, matchesNotificationForContext } from './services/notificationAudience';
 import Sidebar from './components/Sidebar';
 
 const Notifications = ({ onNavigate }) => {
@@ -10,10 +12,11 @@ const Notifications = ({ onNavigate }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const channelRef = useRef(null);
 
-  // Scroll locking when sidebar is open or notification modal is open
+  // Scroll locking only when sidebar is open (modal handles its own scroll)
   useEffect(() => {
-    if (isMenuOpen || showDetailModal) {
+    if (isMenuOpen) {
       const scrollY = window.scrollY;
       document.documentElement.style.overflow = 'hidden';
       document.body.style.overflow = 'hidden';
@@ -54,12 +57,41 @@ const Notifications = ({ onNavigate }) => {
       document.body.style.top = 'unset';
       document.body.style.touchAction = 'auto';
     };
-  }, [isMenuOpen, showDetailModal]);
+  }, [isMenuOpen]);
 
-  // Load notifications on component mount
+  // Load notifications on component mount and subscribe to realtime
   useEffect(() => {
     fetchNotifications();
+    subscribeToNotifications();
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
   }, []);
+
+  const subscribeToNotifications = () => {
+    const notificationContext = getCurrentNotificationContext();
+    if (!notificationContext.userId) return;
+
+    const channel = supabase
+      .channel('notifications-realtime')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications' },
+        (payload) => {
+          const newNotif = payload.new;
+          const isForMe = matchesNotificationForContext(newNotif, notificationContext);
+          if (isForMe) {
+            setNotifications((prev) => [newNotif, ...prev]);
+          }
+        }
+      )
+      .subscribe();
+
+    channelRef.current = channel;
+  };
 
   // Handle initial notification from sessionStorage
   useEffect(() => {
@@ -141,6 +173,32 @@ const Notifications = ({ onNavigate }) => {
   const closeDetailModal = () => {
     setShowDetailModal(false);
     setSelectedNotification(null);
+  };
+
+  // Handle opening a specific notification by ID (from push/local notification tap)
+  useEffect(() => {
+    const pendingId = sessionStorage.getItem('openNotificationId');
+    if (!pendingId || notifications.length === 0) return;
+
+    const found = notifications.find((n) => String(n.id) === String(pendingId));
+    if (found) {
+      handleNotificationClick(found);
+      sessionStorage.removeItem('openNotificationId');
+    }
+  }, [notifications]);
+
+  const handleDeleteNotification = async (e, id) => {
+    e.stopPropagation();
+    try {
+      // Optimistically remove from UI
+      setNotifications(prev => prev.filter(n => n.id !== id));
+      // Call backend
+      await deleteNotification(id);
+    } catch (err) {
+      console.error('Error deleting notification:', err);
+      // Re-fetch if delete fails
+      fetchNotifications();
+    }
   };
 
   const handleMarkAllAsRead = async () => {
@@ -275,10 +333,19 @@ const Notifications = ({ onNavigate }) => {
             <div
               key={notification.id}
               onClick={() => handleNotificationClick(notification)}
-              className={`bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md hover:border-indigo-100 transition-all cursor-pointer ${!notification.is_read ? 'border-l-4 border-l-indigo-600 bg-indigo-50/30' : ''
+              className={`relative bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md hover:border-indigo-100 transition-all cursor-pointer ${!notification.is_read ? 'border-l-4 border-l-indigo-600 bg-indigo-50/30' : ''
                 }`}
             >
-              <div className="flex items-start justify-between mb-2">
+              {/* Dismiss (X) button */}
+              <button
+                onClick={(e) => handleDeleteNotification(e, notification.id)}
+                className="absolute top-3 right-3 p-1 rounded-full hover:bg-gray-100 text-gray-400 hover:text-red-500 transition-colors"
+                title="Dismiss notification"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="flex items-start justify-between mb-2 pr-6">
                 <h4 className={`font-semibold text-gray-900 ${!notification.is_read ? 'font-bold' : ''}`}>
                   {notification.title}
                 </h4>
@@ -318,130 +385,37 @@ const Notifications = ({ onNavigate }) => {
 
       {/* Detailed Notification Modal */}
       {showDetailModal && selectedNotification && (
-        <div className="fixed inset-0 z-[999] bg-black/60 flex items-center justify-center p-4" onClick={closeDetailModal}>
-          <div className="bg-white rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] max-w-md w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900">Notification Details</h3>
-                <button
-                  onClick={closeDetailModal}
-                  className="p-1 rounded-full hover:bg-gray-100"
-                >
-                  <X className="h-5 w-5 text-gray-500" />
-                </button>
-              </div>
+        <div className="fixed inset-0 z-[999] bg-black/60 flex items-end sm:items-center justify-center" onClick={closeDetailModal}>
+          <div
+            className="bg-white rounded-t-3xl sm:rounded-2xl w-full sm:max-w-md max-h-[80vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h3 className="text-base font-bold text-gray-900">Notification</h3>
+              <button onClick={closeDetailModal} className="p-1 rounded-full hover:bg-gray-100">
+                <X className="h-5 w-5 text-gray-500" />
+              </button>
+            </div>
 
-              <div className="space-y-4">
-                <div className="p-4 bg-indigo-50 rounded-xl">
-                  <h4 className="font-semibold text-indigo-800 mb-2">{selectedNotification.title}</h4>
-                  <p className="text-gray-700 whitespace-pre-line">{selectedNotification.message}</p>
-                </div>
+            {/* Scrollable body */}
+            <div className="overflow-y-auto flex-1 px-6 py-5 space-y-3">
+              <p className="text-sm font-semibold text-indigo-700">{selectedNotification.title}</p>
+              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{selectedNotification.message}</p>
+              <p className="text-xs text-gray-400 pt-1">
+                {new Date(selectedNotification.created_at).toLocaleDateString()} at{' '}
+                {new Date(selectedNotification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </p>
+            </div>
 
-                {selectedNotification.type === 'appointment_update' && (
-                  <div className="border-t border-gray-100 pt-4">
-                    <h5 className="font-semibold text-gray-800 mb-3">Appointment Details</h5>
-
-                    <div className="space-y-3">
-                      {extractPatientName(selectedNotification.message) && (
-                        <div className="flex items-start">
-                          <User className="h-5 w-5 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
-                          <div>
-                            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Patient</p>
-                            <p className="text-sm text-gray-800 font-medium">{extractPatientName(selectedNotification.message)}</p>
-                          </div>
-                        </div>
-                      )}
-
-                      {extractDateTime(selectedNotification.message) && (
-                        <div className="flex items-start">
-                          <Calendar className="h-5 w-5 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
-                          <div>
-                            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Date & Time</p>
-                            <p className="text-sm text-gray-800 font-medium">{extractDateTime(selectedNotification.message)}</p>
-                          </div>
-                        </div>
-                      )}
-
-                      {extractDoctorName(selectedNotification.message) && (
-                        <div className="flex items-start">
-                          <Stethoscope className="h-5 w-5 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
-                          <div>
-                            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Doctor</p>
-                            <p className="text-sm text-gray-800 font-medium">{extractDoctorName(selectedNotification.message)}</p>
-                          </div>
-                        </div>
-                      )}
-
-                      {extractDepartment(selectedNotification.message) && (
-                        <div className="flex items-start">
-                          <Building2 className="h-5 w-5 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
-                          <div>
-                            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Department</p>
-                            <p className="text-sm text-gray-800 font-medium">{extractDepartment(selectedNotification.message)}</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {selectedNotification.type === 'referral_update' && (
-                  <div className="border-t border-gray-100 pt-4">
-                    <h5 className="font-semibold text-gray-800 mb-3">Referral Details</h5>
-
-                    <div className="space-y-3">
-                      {extractPatientName(selectedNotification.message) && (
-                        <div className="flex items-start">
-                          <User className="h-5 w-5 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
-                          <div>
-                            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Patient</p>
-                            <p className="text-sm text-gray-800 font-medium">{extractPatientName(selectedNotification.message)}</p>
-                          </div>
-                        </div>
-                      )}
-
-                      {extractDoctorName(selectedNotification.message) && (
-                        <div className="flex items-start">
-                          <Stethoscope className="h-5 w-5 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
-                          <div>
-                            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Referred To</p>
-                            <p className="text-sm text-gray-800 font-medium">{extractDoctorName(selectedNotification.message)}</p>
-                          </div>
-                        </div>
-                      )}
-
-                      {extractDepartment(selectedNotification.message) && (
-                        <div className="flex items-start">
-                          <Building2 className="h-5 w-5 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
-                          <div>
-                            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Department</p>
-                            <p className="text-sm text-gray-800 font-medium">{extractDepartment(selectedNotification.message)}</p>
-                          </div>
-                        </div>
-                      )}
-
-                      {extractCategory(selectedNotification.message) && (
-                        <div className="flex items-start">
-                          <FileText className="h-5 w-5 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
-                          <div>
-                            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Category</p>
-                            <p className="text-sm text-gray-800 font-medium">{extractCategory(selectedNotification.message)}</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex justify-end pt-4">
-                  <button
-                    onClick={closeDetailModal}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-gray-100">
+              <button
+                onClick={closeDetailModal}
+                className="w-full py-2.5 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 transition-colors"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

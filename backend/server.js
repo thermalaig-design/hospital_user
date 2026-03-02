@@ -16,6 +16,8 @@ import adminRoutes from './routes/adminRoutes.js';
 import sponsorRoutes from './routes/sponsorRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import galleryRoutes from './routes/galleryRoutes.js';
+import { initFirebaseAdmin } from './config/firebaseAdmin.js';
+import { startNotificationPushWorker } from './services/notificationPushWorker.js';
 
 // ES module fix for __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -138,3 +140,7 @@ app.listen(PORT, () => {
   console.log('🌐 Production URL:', `https://hospital-trustee-fiwe.vercel.app/`);
 });
   
+
+initFirebaseAdmin();
+startNotificationPushWorker();
+

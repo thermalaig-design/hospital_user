@@ -1,87 +1,84 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Mail, Calendar, MapPin, Briefcase, Camera, Save, Shield, BadgeCheck, Phone, Droplet, UserCircle, Home as HomeIcon, Menu, X, Award, Upload, CheckCircle, AlertCircle } from 'lucide-react';
+import {
+  User, Users, Mail, Calendar, MapPin, Briefcase, Camera, Save,
+  Shield, BadgeCheck, Phone, Droplet, UserCircle,
+  Home as HomeIcon, Menu, X, Award, CheckCircle, AlertCircle,
+  Plus, Trash2, ChevronDown, ChevronUp
+} from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import { getAllElectedMembers, getProfile, saveProfile } from './services/api';
 
-// InputField component definition
-const InputField = ({ label, icon: Icon, type = 'text', value, onChange, placeholder, required = false, disabled = false }) => (
-  <div className={`bg-white rounded-2xl p-4 border border-gray-200 shadow-sm transition-all ${disabled ? 'bg-gray-100 opacity-70' : 'hover:border-indigo-300 focus-within:border-indigo-500 focus-within:shadow-md'}`}>
-    <label className="block text-xs font-bold text-gray-600 mb-2 ml-1">
-      {label} {required && <span className="text-red-500">*</span>}
+// Classy input field — label on top, styled bordered input
+const RowField = ({ label, type = 'text', value, onChange, placeholder, disabled = false, icon: Icon }) => (
+  <div className={`flex flex-col gap-1 ${disabled ? 'opacity-70' : ''}`}>
+    <label className="text-[11px] font-bold text-indigo-500 uppercase tracking-widest ml-0.5 flex items-center gap-1">
+      {Icon && <Icon className="h-3 w-3" />}{label}
+      {disabled && <span className="text-[9px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full ml-1 font-semibold">AUTO</span>}
     </label>
-    
-    <div className="flex items-center gap-3 min-w-0">
-      <div className={`p-2 rounded-xl flex-shrink-0 ${disabled ? 'bg-gray-200 text-gray-500' : 'bg-indigo-50 text-indigo-600'}`}>
-        {Icon && <Icon className="h-4 w-4" />}
-      </div>
+    <div className={`relative rounded-2xl border-2 transition-all ${disabled
+        ? 'bg-gray-50 border-gray-100'
+        : 'bg-white border-gray-100 focus-within:border-indigo-400 focus-within:shadow-[0_0_0_3px_rgba(99,102,241,0.08)]'
+      }`}>
       <input
         type={type}
         value={value || ''}
-        onChange={(e) => onChange(e.target.value)}
-        className={`flex-1 min-w-0 text-sm font-medium ${disabled ? 'text-gray-600 bg-gray-100 cursor-not-allowed' : 'text-gray-800 bg-transparent'} focus:outline-none placeholder:text-xs placeholder:font-normal placeholder:text-gray-400 placeholder:truncate`}
-        placeholder={placeholder || `Enter ${label}`}
+        onChange={(e) => onChange && onChange(e.target.value)}
+        placeholder={placeholder || `Enter ${label.toLowerCase()}`}
         disabled={disabled}
+        className="w-full px-4 py-3 text-sm font-medium text-gray-800 bg-transparent focus:outline-none placeholder:text-gray-300 disabled:cursor-not-allowed rounded-2xl"
       />
     </div>
   </div>
 );
 
-// SelectField component definition
-const SelectField = ({ label, icon: Icon, value, onChange, options, placeholder, required = false, disabled = false }) => (
-  <div className={`bg-white rounded-2xl p-4 border border-gray-200 shadow-sm transition-all ${disabled ? 'bg-gray-100 opacity-70' : 'hover:border-indigo-300 focus-within:border-indigo-500 focus-within:shadow-md'}`}>
-    <label className="block text-xs font-bold text-gray-600 mb-2 ml-1">
-      {label} {required && <span className="text-red-500">*</span>}
+// Date field
+const RowDate = ({ label, value, onChange, icon: Icon }) => (
+  <div className="flex flex-col gap-1">
+    <label className="text-[11px] font-bold text-indigo-500 uppercase tracking-widest ml-0.5 flex items-center gap-1">
+      {Icon && <Icon className="h-3 w-3" />}{label}
     </label>
-    <div className="flex items-center gap-3 relative">
-      <div className={`p-2 rounded-xl ${disabled ? 'bg-gray-200 text-gray-500' : 'bg-indigo-50 text-indigo-600'}`}>
-        {Icon && <Icon className="h-4 w-4" />}
-      </div>
+    <div className="relative rounded-2xl border-2 border-gray-100 bg-white transition-all focus-within:border-indigo-400 focus-within:shadow-[0_0_0_3px_rgba(99,102,241,0.08)]">
+      <input
+        type="date"
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-4 py-3 text-sm font-medium text-gray-800 bg-transparent focus:outline-none rounded-2xl"
+      />
+    </div>
+  </div>
+);
+
+// Select field
+const RowSelect = ({ label, value, onChange, options, placeholder, icon: Icon }) => (
+  <div className="flex flex-col gap-1">
+    <label className="text-[11px] font-bold text-indigo-500 uppercase tracking-widest ml-0.5 flex items-center gap-1">
+      {Icon && <Icon className="h-3 w-3" />}{label}
+    </label>
+    <div className="relative rounded-2xl border-2 border-gray-100 bg-white transition-all focus-within:border-indigo-400 focus-within:shadow-[0_0_0_3px_rgba(99,102,241,0.08)]">
       <select
         value={value || ''}
         onChange={(e) => onChange(e.target.value)}
-        className={`flex-1 text-sm font-medium ${disabled ? 'text-gray-600 bg-gray-100 cursor-not-allowed' : 'text-gray-800 bg-transparent'} focus:outline-none appearance-none pr-8`}
-        disabled={disabled}
+        className="w-full px-4 py-3 text-sm font-medium text-gray-800 bg-transparent focus:outline-none appearance-none rounded-2xl pr-8"
       >
-        <option value="">{placeholder || `Select ${label}`}</option>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
+        <option value="">{placeholder || 'Select'}</option>
+        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
-      <div className="absolute right-3 pointer-events-none">
-        <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
+      <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+        <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
       </div>
     </div>
   </div>
 );
 
-// SelectionGroup component for better visual selection
-const SelectionGroup = ({ label, value, onChange, options, required = false, disabled = false }) => (
-  <div className={`bg-white rounded-2xl p-4 border border-gray-200 shadow-sm transition-all ${disabled ? 'bg-gray-100 opacity-70' : 'hover:border-indigo-300'}`}>
-    <label className="block text-xs font-bold text-gray-600 mb-3 ml-1">
-      {label} {required && <span className="text-red-500">*</span>}
-    </label>
-    <div className="flex flex-wrap gap-2">
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          onClick={() => !disabled && onChange(option.value)}
-          className={`flex-1 min-w-[80px] py-2.5 px-3 rounded-xl text-xs font-bold transition-all border ${
-            value === option.value
-              ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-100'
-              : 'bg-indigo-50 text-indigo-700 border-indigo-100 hover:bg-indigo-100'
-          } ${disabled ? 'cursor-not-allowed' : 'active:scale-95'}`}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
+// Section header with colored left pill
+const SectionHeader = ({ title, color = 'bg-indigo-500' }) => (
+  <div className="flex items-center gap-2.5 pt-7 pb-3">
+    <div className={`w-1 h-5 rounded-full ${color}`} />
+    <span className="text-xs font-extrabold text-gray-500 uppercase tracking-widest">{title}</span>
   </div>
 );
+
+const TABS = ['Details', 'Family Members'];
 
 const Profile = ({ onNavigate, onProfileUpdate }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -91,965 +88,606 @@ const Profile = ({ onNavigate, onProfileUpdate }) => {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [showNavigationWarning, setShowNavigationWarning] = useState(false);
-  const [navigationTarget, setNavigationTarget] = useState(null);
-  const [originalProfileData, setOriginalProfileData] = useState(null);
-  
+  const [showNavWarning, setShowNavWarning] = useState(false);
+  const [navTarget, setNavTarget] = useState(null);
+  const [originalData, setOriginalData] = useState(null);
+  const [activeTab, setActiveTab] = useState('Details');
+  const [expandedMember, setExpandedMember] = useState(null);
+
   const [profileData, setProfileData] = useState({
-    serialNo: '',
-    name: '',
-    role: 'Trustee',
-    memberId: '',
-    mobile: '',
-    email: '',
-    addressHome: '',
-    addressOffice: '',
-    companyName: '',
-    residentLandline: '',
-    officeLandline: '',
-    gender: '',
-    maritalStatus: '',
-    nationality: '',
-    aadhaarId: '',
-    bloodGroup: '',
-    dob: '',
-    emergencyContactName: '',
-    emergencyContactNumber: '',
-    profilePhotoUrl: '',
-    spouseName: '',
-    spouseContactNumber: '',
-    childrenCount: '',
-    facebook: '',
-    twitter: '',
-    instagram: '',
-    linkedin: '',
-    whatsapp: '',
-    familyMembers: [],
-    position: '',
-    location: '',
-    isElectedMember: false
+    name: '', role: 'Trustee', memberId: '', mobile: '', email: '',
+    address_home: '', address_office: '', company_name: '',
+    resident_landline: '', office_landline: '',
+    gender: '', marital_status: '', nationality: '', aadhaar_id: '',
+    blood_group: '', dob: '',
+    emergency_contact_name: '', emergency_contact_number: '',
+    profile_photo_url: '',
+    spouse_name: '', spouse_contact_number: '', children_count: '',
+    facebook: '', twitter: '', instagram: '', linkedin: '', whatsapp: '',
+    family_members: [],
+    position: '', location: '', isElectedMember: false
   });
 
-  const [profilePhotoFile, setProfilePhotoFile] = useState(null);
+  const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
 
-  // Track original profile data to detect changes
-  // Only initialize after profile is loaded (profileData has real values)
-  useEffect(() => {
-    if (!loading && profileData.name) {
-      setOriginalProfileData(JSON.parse(JSON.stringify(profileData)));
-    }
-  }, [loading]);
+  const set = (field) => (val) => setProfileData(prev => ({ ...prev, [field]: val }));
 
   // Detect unsaved changes
   useEffect(() => {
-    if (originalProfileData) {
-      const hasChanges = JSON.stringify(profileData) !== JSON.stringify(originalProfileData) || profilePhotoFile !== null;
-      setHasUnsavedChanges(hasChanges);
-    }
-  }, [profileData, profilePhotoFile, originalProfileData]);
+    if (!loading && profileData.name) setOriginalData(JSON.parse(JSON.stringify(profileData)));
+  }, [loading]);
 
-  // Scroll locking when sidebar is open
+  useEffect(() => {
+    if (originalData) setHasUnsavedChanges(JSON.stringify(profileData) !== JSON.stringify(originalData) || photoFile !== null);
+  }, [profileData, photoFile, originalData]);
+
+  // Scroll lock
   useEffect(() => {
     if (isMenuOpen) {
-      const scrollY = window.scrollY;
-      document.documentElement.style.overflow = 'hidden';
-      document.body.style.overflow = 'hidden';
-      document.body.style.position = 'fixed';
-      document.body.style.width = '100%';
-      document.body.style.top = `-${scrollY}px`;
-      document.body.style.touchAction = 'none';
+      const y = window.scrollY;
+      Object.assign(document.body.style, { overflow: 'hidden', position: 'fixed', width: '100%', top: `-${y}px` });
     } else {
-      const scrollY = parseInt(document.body.style.top || '0') * -1;
-      document.documentElement.style.overflow = 'unset';
-      document.body.style.overflow = 'unset';
-      document.body.style.position = 'unset';
-      document.body.style.width = 'unset';
-      document.body.style.top = 'unset';
-      document.body.style.touchAction = 'auto';
-      window.scrollTo(0, scrollY);
+      const y = parseInt(document.body.style.top || '0') * -1;
+      Object.assign(document.body.style, { overflow: '', position: '', width: '', top: '' });
+      window.scrollTo(0, y);
     }
-    return () => {
-      document.documentElement.style.overflow = 'unset';
-      document.body.style.overflow = 'unset';
-      document.body.style.position = 'unset';
-      document.body.style.width = 'unset';
-      document.body.style.top = 'unset';
-      document.body.style.touchAction = 'auto';
-    };
+    return () => Object.assign(document.body.style, { overflow: '', position: '', width: '', top: '' });
   }, [isMenuOpen]);
 
-  // Close sidebar when clicking outside
+  // Outside click close sidebar
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (isMenuOpen) {
-        const isSidebarClick = event.target.closest('[data-sidebar="true"]') || 
-                               event.target.closest('[data-sidebar-overlay="true"]');
-        if (!isSidebarClick) {
-          setIsMenuOpen(false);
-        }
-      }
-    };
-
-    if (isMenuOpen) {
-      document.addEventListener('click', handleClickOutside, true);
-      return () => {
-        document.removeEventListener('click', handleClickOutside, true);
-      };
-    }
+    if (!isMenuOpen) return;
+    const h = (e) => { if (!e.target.closest('[data-sidebar="true"]') && !e.target.closest('[data-sidebar-overlay="true"]')) setIsMenuOpen(false); };
+    document.addEventListener('click', h, true);
+    return () => document.removeEventListener('click', h, true);
   }, [isMenuOpen]);
 
-  // Load profile from Supabase on mount
   useEffect(() => {
+    // Deep-link: if another page asked to open a specific tab, honour it once
+    const requestedTab = localStorage.getItem('openProfileTab');
+    if (requestedTab) {
+      setActiveTab(requestedTab);
+      localStorage.removeItem('openProfileTab');
+    }
     loadProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadProfile = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
       const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const userId = user['Membership number'] || user.mobile || user.id;
-      
-      if (!userId) {
-        // Load from localStorage as fallback
-        loadFromLocalStorage();
-        return;
-      }
+      const userId = user['Mobile'] || user.mobile || user.id || user['Membership number'];
+      const userIdentifier = user['Membership number'] || user.membership_number || userId;
+      if (!userId) { loadFromLS(); return; }
 
-      // Try to load from Supabase using API service
-      const data = await getProfile();
-      
-      if (data.success && data.profile) {
-        // Map database fields to profile data
-        const mappedData = {
-          serialNo: data.profile.serial_no || '',
-          name: data.profile.name || '',
-          role: data.profile.role || 'Trustee',
-          memberId: data.profile.member_id || '',
-          mobile: data.profile.mobile || '',
-          email: data.profile.email || '',
-          addressHome: data.profile.address_home || '',
-          addressOffice: data.profile.address_office || '',
-          companyName: data.profile.company_name || '',
-          residentLandline: data.profile.resident_landline || '',
-          officeLandline: data.profile.office_landline || '',
-          gender: data.profile.gender || '',
-          maritalStatus: data.profile.marital_status || '',
-          nationality: data.profile.nationality || '',
-          aadhaarId: data.profile.aadhaar_id || '',
-          bloodGroup: data.profile.blood_group || '',
-          dob: data.profile.dob || '',
-          emergencyContactName: data.profile.emergency_contact_name || '',
-          emergencyContactNumber: data.profile.emergency_contact_number || '',
-          profilePhotoUrl: data.profile.profile_photo_url || '',
-          spouseName: data.profile.spouse_name || '',
-          spouseContactNumber: data.profile.spouse_contact_number || '',
-          childrenCount: data.profile.children_count || '',
-          facebook: data.profile.facebook || '',
-          twitter: data.profile.twitter || '',
-          instagram: data.profile.instagram || '',
-          linkedin: data.profile.linkedin || '',
-          whatsapp: data.profile.whatsapp || '',
-          familyMembers: data.profile.family_members ? JSON.parse(data.profile.family_members) : [],
-          position: data.profile.position || '',
-          location: data.profile.location || '',
-          isElectedMember: data.profile.is_elected_member || false
-        };
-        
-        setProfileData(mappedData);
-        if (mappedData.profilePhotoUrl) {
-          setPhotoPreview(mappedData.profilePhotoUrl);
-        }
-      } else {
-        // Fallback to localStorage
-        loadFromLocalStorage();
-      }
-    } catch (error) {
-      console.error('Error loading profile:', error);
-      loadFromLocalStorage();
-    } finally {
-      setLoading(false);
-    }
+      const { supabase } = await import('./services/supabaseClient.js');
+      const { data: p, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('user_identifier', String(userIdentifier))
+        .maybeSingle();
+
+      if (!error && p) {
+        setProfileData({
+          name: p.name || '', role: p.role || 'Trustee', memberId: p.member_id || '',
+          mobile: p.mobile || '', email: p.email || '',
+          address_home: p.address_home || '', address_office: p.address_office || '',
+          company_name: p.company_name || '', resident_landline: p.resident_landline || '',
+          office_landline: p.office_landline || '', gender: p.gender || '',
+          marital_status: p.marital_status || '', nationality: p.nationality || '',
+          aadhaar_id: p.aadhaar_id || '', blood_group: p.blood_group || '',
+          dob: p.dob || '', emergency_contact_name: p.emergency_contact_name || '',
+          emergency_contact_number: p.emergency_contact_number || '',
+          profile_photo_url: p.profile_photo_url || '',
+          spouse_name: p.spouse_name || '', spouse_contact_number: p.spouse_contact_number || '',
+          children_count: p.children_count || '',
+          facebook: p.facebook || '', twitter: p.twitter || '', instagram: p.instagram || '',
+          linkedin: p.linkedin || '', whatsapp: p.whatsapp || '',
+          family_members: p.family_members ? (typeof p.family_members === 'string' ? JSON.parse(p.family_members) : p.family_members) : [],
+          position: p.position || '', location: p.location || '',
+          isElectedMember: p.is_elected_member || false
+        });
+        if (p.profile_photo_url) setPhotoPreview(p.profile_photo_url);
+      } else { loadFromLS(); }
+    } catch { loadFromLS(); }
+    finally { setLoading(false); }
   };
 
-  const loadFromLocalStorage = () => {
+
+  const loadFromLS = () => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    if (user) {
-      const parsedUser = user;
-      const userKey = `userProfile_${parsedUser.Mobile || parsedUser.mobile || parsedUser.id || 'default'}`;
-      const savedProfile = localStorage.getItem(userKey);
-      
-      if (savedProfile) {
-        const parsedProfile = JSON.parse(savedProfile);
-        setProfileData(prev => ({ ...prev, ...parsedProfile }));
-        if (parsedProfile.profilePhotoUrl) {
-          setPhotoPreview(parsedProfile.profilePhotoUrl);
-        }
-      } else {
-        // Load from user data
-        setProfileData(prev => ({
-          ...prev,
-          serialNo: parsedUser['S. No.'] || '',
-          name: parsedUser['Name'] || '',
-          role: parsedUser.type || 'Trustee',
-          memberId: parsedUser['Membership number'] || parsedUser.membership_number || '',
-          mobile: parsedUser.Mobile || parsedUser.mobile || '',
-          email: parsedUser.Email || parsedUser.email || '',
-          addressHome: parsedUser['Address Home'] || '',
-          addressOffice: parsedUser['Address Office'] || '',
-          companyName: parsedUser['Company Name'] || '',
-          residentLandline: parsedUser['Resident Landline'] || '',
-          officeLandline: parsedUser['Office Landline'] || '',
-          position: parsedUser.position || '',
-          location: parsedUser.location || '',
-          isElectedMember: parsedUser.is_elected_member || false
-        }));
-      }
+    const key = `userProfile_${user.Mobile || user.mobile || user.id || 'default'}`;
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      const p = JSON.parse(saved);
+      setProfileData(prev => ({ ...prev, ...p }));
+      if (p.profile_photo_url) setPhotoPreview(p.profile_photo_url);
+    } else {
+      setProfileData(prev => ({
+        ...prev,
+        name: user['Name'] || '', role: user.type || 'Trustee',
+        memberId: user['Membership number'] || user.membership_number || '',
+        mobile: user.Mobile || user.mobile || '', email: user.Email || user.email || '',
+        address_home: user['Address Home'] || '', address_office: user['Address Office'] || '',
+        company_name: user['Company Name'] || '',
+        resident_landline: user['Resident Landline'] || '', office_landline: user['Office Landline'] || '',
+      }));
     }
   };
 
-  // Fetch elected member data
   useEffect(() => {
-    const fetchElectedData = async () => {
-      if (profileData.memberId && !profileData.isElectedMember) {
-        try {
-          const electedMembers = await getAllElectedMembers();
-          const electedMember = electedMembers.data.find(elected => {
-            const electedMembership = String(elected.membership_number || elected['Membership number'] || '').trim().toLowerCase();
-            const userMembership = String(profileData.memberId).trim().toLowerCase();
-            return electedMembership === userMembership;
-          });
-
-          if (electedMember) {
-            setProfileData(prev => ({
-              ...prev,
-              position: electedMember.position || prev.position,
-              location: electedMember.location || prev.location,
-              isElectedMember: true
-            }));
-          }
-        } catch (error) {
-          console.error('Error fetching elected member data:', error);
-        }
-      }
+    if (!profileData.memberId) return;
+    const fetch = async () => {
+      try {
+        const res = await getAllElectedMembers();
+        const found = res.data?.find(e => String(e.membership_number || e['Membership number'] || '').trim().toLowerCase() === String(profileData.memberId).trim().toLowerCase());
+        if (found) setProfileData(prev => ({ ...prev, position: found.position || prev.position, location: found.location || prev.location, isElectedMember: true }));
+      } catch { }
     };
-
-    if (profileData.memberId) {
-      fetchElectedData();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetch();
   }, [profileData.memberId]);
 
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        setMessage({ type: 'error', text: 'Please select an image file' });
-        return;
-      }
-      
-      // Validate file size (5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setMessage({ type: 'error', text: 'Image size should be less than 5MB' });
-        return;
-      }
-
-      setProfilePhotoFile(file);
-      
-      // Create preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleRemovePhoto = () => {
-    setProfilePhotoFile(null);
-    setPhotoPreview(null);
-    setProfileData(prev => ({ ...prev, profilePhotoUrl: '' }));
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { setMessage({ type: 'error', text: 'Please select an image file' }); return; }
+    if (file.size > 5 * 1024 * 1024) { setMessage({ type: 'error', text: 'Image must be under 5MB' }); return; }
+    setPhotoFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setPhotoPreview(reader.result);
+    reader.readAsDataURL(file);
   };
 
   const handleSave = async () => {
-    if (!profileData.name) {
-      setMessage({ type: 'error', text: 'Please enter your name' });
-      return;
-    }
-  
-    setSaving(true);
-    setMessage({ type: '', text: '' });
-  
+    if (!profileData.name) { setMessage({ type: 'error', text: 'Please enter your name' }); return; }
+    setSaving(true); setMessage({ type: '', text: '' });
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const userId = user['Membership number'] || user.mobile || user.id;
-        
-      if (!userId) {
-        setMessage({ type: 'error', text: 'Please log in first' });
-        setSaving(false);
-        return;
+      const userId = user['Mobile'] || user.mobile || user.id || user['Membership number'] || '';
+      const userIdentifier = user['Membership number'] || user.membership_number || userId;
+
+      if (!userId) { setMessage({ type: 'error', text: 'User not found. Please login again.' }); setSaving(false); return; }
+
+      // Get or generate a stable UUID for this user (user_id column is uuid type)
+      const uuidKey = `userUUID_${userIdentifier}`;
+      let stableUUID = localStorage.getItem(uuidKey);
+      if (!stableUUID) {
+        stableUUID = crypto.randomUUID();
+        localStorage.setItem(uuidKey, stableUUID);
       }
-  
-      const data = await saveProfile(profileData, profilePhotoFile);
-        
-      if (data.success) {
-        // Show success popup instead of toast
-        setShowSuccessPopup(true);
-          
-        // Update profile photo URL if uploaded
-        if (data.profile && data.profile.profile_photo_url) {
-          setProfileData(prev => ({ ...prev, profilePhotoUrl: data.profile.profile_photo_url }));
-          setPhotoPreview(data.profile.profile_photo_url);
+
+      // Import supabase directly
+      const { supabase } = await import('./services/supabaseClient.js');
+
+      // Prepare data matching user_profiles table columns exactly
+      const payload = {
+        user_id: stableUUID,           // valid UUID required by column type
+        user_identifier: String(userIdentifier),
+        name: profileData.name || null,
+        role: profileData.role || null,
+        member_id: profileData.memberId || null,
+        mobile: profileData.mobile || null,
+        email: profileData.email || null,
+        address_home: profileData.address_home || null,
+        address_office: profileData.address_office || null,
+        company_name: profileData.company_name || null,
+        resident_landline: profileData.resident_landline || null,
+        office_landline: profileData.office_landline || null,
+        gender: profileData.gender || null,
+        marital_status: profileData.marital_status || null,
+        nationality: profileData.nationality || null,
+        aadhaar_id: profileData.aadhaar_id || null,
+        blood_group: profileData.blood_group || null,
+        dob: profileData.dob || null,
+        emergency_contact_name: profileData.emergency_contact_name || null,
+        emergency_contact_number: profileData.emergency_contact_number || null,
+        profile_photo_url: profileData.profile_photo_url || null,
+        spouse_name: profileData.spouse_name || null,
+        spouse_contact_number: profileData.spouse_contact_number || null,
+        children_count: profileData.children_count ? Number(profileData.children_count) : null,
+        facebook: profileData.facebook || null,
+        twitter: profileData.twitter || null,
+        instagram: profileData.instagram || null,
+        linkedin: profileData.linkedin || null,
+        whatsapp: profileData.whatsapp || null,
+        family_members: profileData.family_members || [],
+        position: profileData.position || null,
+        location: profileData.location || null,
+        is_elected_member: profileData.isElectedMember || false,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error: upsertErr } = await supabase
+        .from('user_profiles')
+        .upsert(payload, { onConflict: 'user_identifier' });
+
+      if (upsertErr) throw upsertErr;
+
+      // Also save to localStorage backup
+      const key = `userProfile_${userId}`;
+      localStorage.setItem(key, JSON.stringify(profileData));
+      setOriginalData(JSON.parse(JSON.stringify(profileData)));
+      setHasUnsavedChanges(false); setPhotoFile(null);
+      if (onProfileUpdate) onProfileUpdate(profileData);
+      setShowSuccessPopup(true);
+      setTimeout(() => {
+        setShowSuccessPopup(false);
+        // If came from appointment form, go back there
+        const returnFlag = localStorage.getItem('returnToAppointments');
+        if (returnFlag) {
+          localStorage.removeItem('returnToAppointments');
+          onNavigate('appointments');
         }
-          
-        // Also save to localStorage as backup
-        const userKey = `userProfile_${user.Mobile || user.mobile || user.id || 'default'}`;
-        localStorage.setItem(userKey, JSON.stringify(profileData));
-        
-        // Update original data to mark as saved
-        setOriginalProfileData(JSON.parse(JSON.stringify(profileData)));
-        setHasUnsavedChanges(false);
-        setProfilePhotoFile(null);
-          
-        if (onProfileUpdate) onProfileUpdate(profileData);
-          
-        // Auto-hide popup after 3 seconds
-        setTimeout(() => setShowSuccessPopup(false), 3000);
-      } else {
-        setMessage({ type: 'error', text: data.message || 'Failed to save profile' });
-      }
-    } catch (error) {
-      console.error('Save error:', error);
-      setMessage({ type: 'error', text: 'Failed to save profile. Please try again.' });
-    } finally {
-      setSaving(false);
+      }, 1500);
+    } catch (err) {
+      console.error('Profile save error:', err);
+      setMessage({ type: 'error', text: 'Failed to save. Please try again.' });
     }
+    finally { setSaving(false); }
   };
 
-  // Handle navigation with unsaved changes check
   const handleNavigate = (target) => {
-    if (hasUnsavedChanges) {
-      setNavigationTarget(target);
-      setShowNavigationWarning(true);
-    } else {
-      onNavigate(target);
-    }
+    if (hasUnsavedChanges) { setNavTarget(target); setShowNavWarning(true); }
+    else { onNavigate(target); }
   };
 
-  // Confirm navigation and discard changes
-  const handleConfirmNavigation = () => {
-    setShowNavigationWarning(false);
-    setHasUnsavedChanges(false);
-    if (navigationTarget) {
-      onNavigate(navigationTarget);
-    }
+  const updateMember = (idx, field, value) => {
+    const updated = [...profileData.family_members];
+    updated[idx] = { ...updated[idx], [field]: value };
+    setProfileData(prev => ({ ...prev, family_members: updated }));
   };
 
-  // Cancel navigation and stay on page
-  const handleCancelNavigation = () => {
-    setShowNavigationWarning(false);
-    setNavigationTarget(null);
+  const addMember = () => {
+    const newMember = { id: Date.now(), name: '', relation: '', gender: '', age: '', dob: '', blood_group: '', contact_no: '' };
+    const idx = profileData.family_members.length;
+    setProfileData(prev => ({ ...prev, family_members: [...prev.family_members, newMember] }));
+    setExpandedMember(idx);
+  };
+
+  const removeMember = (idx) => {
+    setProfileData(prev => ({ ...prev, family_members: prev.family_members.filter((_, i) => i !== idx) }));
+    if (expandedMember === idx) setExpandedMember(null);
   };
 
   if (loading) {
     return (
-      <div className="bg-white min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent mx-auto"></div>
-          <p className="text-gray-600 mt-4">Loading profile...</p>
+          <div className="animate-spin rounded-full h-10 w-10 border-4 border-gray-300 border-t-gray-700 mx-auto" />
+          <p className="text-gray-500 mt-4 text-sm">Loading profile...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div 
-      ref={mainContainerRef}
-      className="min-h-screen pb-10 bg-gradient-to-br from-gray-50 via-white to-gray-50 font-sans relative"
-    >
-      {/* Sticky Header */}
-      <div className="bg-white border-gray-200 shadow-sm border-b px-4 sm:px-6 py-5 flex items-center justify-between sticky top-0 z-50 mt-6 transition-all duration-300 pointer-events-auto">
-        <button
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="p-2 rounded-xl hover:bg-gray-100 transition-colors pointer-events-auto"
-        >
+    <div ref={mainContainerRef} className="min-h-screen bg-white font-sans">
+
+      {/* Navbar */}
+      <div className="bg-white border-b border-gray-200 px-4 py-5 flex items-center justify-between sticky top-0 z-50 mt-6">
+        <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 rounded-xl hover:bg-gray-100 transition-colors">
           {isMenuOpen ? <X className="h-6 w-6 text-gray-700" /> : <Menu className="h-6 w-6 text-gray-700" />}
         </button>
-        <h1 className="text-lg font-bold text-gray-900 transition-colors">Edit Profile</h1>
-        <button
-          onClick={() => handleNavigate('home')}
-          className="p-2.5 rounded-xl transition-colors border border-indigo-200 text-indigo-600 bg-indigo-50 hover:bg-indigo-100"
-        >
-          <HomeIcon className="h-5 w-5" />
+        <h1 className="text-lg font-bold text-gray-900">Profile</h1>
+        <button onClick={() => handleNavigate('home')} className="p-2 rounded-xl hover:bg-gray-100 transition-colors">
+          <HomeIcon className="h-5 w-5 text-gray-700" />
         </button>
       </div>
 
-      {/* Sidebar Overlay */}
-      {isMenuOpen && (
-        <div className="absolute inset-0 z-30 lg:hidden">
-          <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setIsMenuOpen(false)}></div>
-          <div className="absolute inset-y-0 left-0 w-64 bg-white shadow-lg">
-            <Sidebar
-              isOpen={isMenuOpen}
-              onClose={() => setIsMenuOpen(false)}
-              onNavigate={handleNavigate}
-              currentPage="profile"
-            />
-          </div>
-        </div>
-      )}
-      
-      <Sidebar
-        isOpen={isMenuOpen}
-        onClose={() => setIsMenuOpen(false)}
-        onNavigate={handleNavigate}
-        currentPage="profile"
-      />
+      <Sidebar isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} onNavigate={handleNavigate} currentPage="profile" />
 
-      {/* Message Banner */}
+      {/* Error/success banner */}
       {message.text && (
-        <div className={`px-6 pt-4 ${message.type === 'success' ? 'bg-green-50' : 'bg-red-50'}`}>
-          <div className={`rounded-xl p-3 flex items-center gap-2 ${message.type === 'success' ? 'bg-green-100 border border-green-200' : 'bg-red-100 border border-red-200'}`}>
-            {message.type === 'success' ? (
-              <CheckCircle className="h-5 w-5 text-green-600" />
-            ) : (
-              <AlertCircle className="h-5 w-5 text-red-600" />
-            )}
-            <p className={`text-sm font-medium ${message.type === 'success' ? 'text-green-700' : 'text-red-700'}`}>
-              {message.text}
-            </p>
-          </div>
+        <div className={`mx-4 mt-3 rounded-xl p-3 flex items-center gap-2 ${message.type === 'error' ? 'bg-red-50 border border-red-200' : 'bg-green-50 border border-green-200'}`}>
+          {message.type === 'error' ? <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" /> : <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />}
+          <p className={`text-sm ${message.type === 'error' ? 'text-red-700' : 'text-green-700'}`}>{message.text}</p>
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto pb-40">
-        {/* Profile Identity Section */}
-        <div className="px-6 pt-8 pb-6 flex flex-col items-center">
-          <div className="relative group">
-            <div className="w-32 h-32 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-[2.5rem] flex items-center justify-center shadow-2xl border-4 border-white overflow-hidden transform transition-all group-hover:scale-105">
-              {photoPreview ? (
-                <img 
-                  src={photoPreview} 
-                  alt="Profile" 
-                  className="w-full h-full object-cover rounded-[2.5rem]"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = `https://ui-avatars.com/api/?name=${profileData.name || 'User'}&background=6366f1&color=fff&size=128`;
-                  }}
-                />
-              ) : profileData.name ? (
-                <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-4xl font-black">
-                  {profileData.name.charAt(0).toUpperCase()}
-                </div>
-              ) : (
-                <UserCircle className="h-20 w-20 text-indigo-300" />
-              )}
-            </div>
-            <button 
-              onClick={() => document.getElementById('profile-photo-upload').click()}
-              className="absolute -bottom-1 -right-1 bg-indigo-600 p-3 rounded-2xl border-4 border-white text-white shadow-xl hover:bg-indigo-700 transition-all hover:scale-110 active:scale-95 z-10"
-            >
-              <Camera className="h-4 w-4" />
-            </button>
-            {photoPreview && (
-              <button 
-                onClick={handleRemovePhoto}
-                className="absolute -top-1 -right-1 bg-red-500 p-2 rounded-xl border-4 border-white text-white shadow-lg hover:bg-red-600 transition-all hover:scale-110 active:scale-95 z-10"
-                title="Remove Photo"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            )}
-            <input
-              id="profile-photo-upload"
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handlePhotoChange}
-            />
-          </div>
-          
-          <div className="mt-6 text-center">
-            <h2 className="text-2xl font-black text-gray-900 tracking-tight">{profileData.name || 'Set Your Name'}</h2>
-            <div className="flex items-center justify-center gap-1.5 mt-2.5 bg-indigo-50 px-4 py-1.5 rounded-full border border-indigo-100">
-              <BadgeCheck className="h-4 w-4 text-indigo-600" />
-              <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-700">
-                {profileData.role}
-                {profileData.isElectedMember && ' (Elected)'}
-              </p>
-            </div>
-            {(profileData.position || profileData.location) && (
-              <div className="mt-2 text-sm text-gray-600">
-                {profileData.position && <p className="font-medium">{profileData.position}</p>}
-                {profileData.location && <p className="text-xs text-gray-500">{profileData.location}</p>}
+      {/* Profile Header */}
+      <div className="px-5 pt-6 pb-4 flex items-center gap-4 border-b border-gray-100">
+        {/* Avatar */}
+        <div className="relative flex-shrink-0">
+          <div className="w-20 h-20 rounded-full border-2 border-gray-200 overflow-hidden bg-gray-100">
+            {photoPreview ? (
+              <img src={photoPreview} alt="Profile" className="w-full h-full object-cover"
+                onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${profileData.name || 'U'}&background=e5e7eb&color=374151&size=80`; }} />
+            ) : profileData.name ? (
+              <div className="w-full h-full flex items-center justify-center text-2xl font-bold text-gray-600">
+                {profileData.name.charAt(0).toUpperCase()}
+              </div>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <UserCircle className="h-12 w-12 text-gray-400" />
               </div>
             )}
           </div>
+          <button onClick={() => document.getElementById('photo-upload').click()}
+            className="absolute -bottom-1 -right-1 bg-white border border-gray-300 p-1.5 rounded-full shadow-sm active:scale-95 transition-all">
+            <Camera className="h-3.5 w-3.5 text-gray-600" />
+          </button>
+          <input id="photo-upload" type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
         </div>
 
-        {/* Form Sections */}
-        <div className="px-6 space-y-6">
-          {/* Contact Information */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">Contact Information</h3>
-            <InputField
-              label="Full Name"
-              icon={User}
-              value={profileData.name}
-              onChange={(val) => setProfileData({ ...profileData, name: val })}
-              placeholder="e.g. Rajesh Kumar"
-              required
-              disabled
-            />
-            <InputField
-              label="Mobile Number"
-              icon={Phone}
-              value={profileData.mobile}
-              onChange={(val) => setProfileData({ ...profileData, mobile: val })}
-              placeholder="00000 00000"
-              disabled
-            />
-            <InputField
-              label="Member ID"
-              icon={Briefcase}
-              value={profileData.memberId}
-              onChange={(val) => setProfileData({ ...profileData, memberId: val })}
-              placeholder="MAH-2024-XXXX"
-              disabled
-            />
-            <InputField
-              label="Email ID"
-              icon={Mail}
-              type="email"
-              value={profileData.email}
-              onChange={(val) => setProfileData({ ...profileData, email: val })}
-              placeholder="name@hospital.com"
-            />
-            {(profileData.position || profileData.location) && (
-              <>
-                <InputField
-                  label="Position (Elected)"
-                  icon={Award}
-                  value={profileData.position}
-                  onChange={(val) => setProfileData({ ...profileData, position: val })}
-                  placeholder="Elected Position"
-                />
-                <InputField
-                  label="Location (Elected)"
-                  icon={MapPin}
-                  value={profileData.location}
-                  onChange={(val) => setProfileData({ ...profileData, location: val })}
-                  placeholder="Elected Location"
-                />
-              </>
-            )}
-              <div className="grid grid-cols-1 gap-4">
-                <SelectionGroup
-                  label="Gender"
-                  value={profileData.gender}
-                  onChange={(val) => setProfileData({ ...profileData, gender: val })}
-                  options={[{ value: 'Male', label: 'Male' }, { value: 'Female', label: 'Female' }, { value: 'Other', label: 'Other' }]}
-                />
-                <SelectionGroup
-                  label="Marital Status"
-                  value={profileData.maritalStatus}
-                  onChange={(val) => setProfileData({ ...profileData, maritalStatus: val })}
-                  options={[{ value: 'Single', label: 'Single' }, { value: 'Married', label: 'Married' }, { value: 'Divorced', label: 'Divorced' }, { value: 'Widowed', label: 'Widowed' }]}
-                />
-              </div>
-
-            <InputField
-              label="Home Address"
-              icon={MapPin}
-              value={profileData.addressHome}
-              onChange={(val) => setProfileData({ ...profileData, addressHome: val })}
-              placeholder="House No, Street, City"
-            />
-            <InputField
-              label="Office Address"
-              icon={MapPin}
-              value={profileData.addressOffice}
-              onChange={(val) => setProfileData({ ...profileData, addressOffice: val })}
-              placeholder="Office Address"
-            />
-            <InputField
-              label="Company Name"
-              icon={Briefcase}
-              value={profileData.companyName}
-              onChange={(val) => setProfileData({ ...profileData, companyName: val })}
-              placeholder="Company Name"
-            />
-            <InputField
-              label="Resident Landline"
-              icon={Phone}
-              value={profileData.residentLandline}
-              onChange={(val) => setProfileData({ ...profileData, residentLandline: val })}
-              placeholder="Resident Landline"
-            />
-            <InputField
-              label="Office Landline"
-              icon={Phone}
-              value={profileData.officeLandline}
-              onChange={(val) => setProfileData({ ...profileData, officeLandline: val })}
-              placeholder="Office Landline"
-            />
-            <InputField
-              label="Aadhaar / Govt ID"
-              icon={Shield}
-              value={profileData.aadhaarId}
-              onChange={(val) => {
-                const digits = val.replace(/\D/g, '').slice(0, 16);
-                const formatted = digits.replace(/(\d{4})(?=\d)/g, '$1 ');
-                setProfileData({ ...profileData, aadhaarId: formatted });
-              }}
-              placeholder="0000 0000 0000 0000"
-            />
-            <InputField
-              label="Emergency Contact Name"
-              icon={User}
-              value={profileData.emergencyContactName}
-              onChange={(val) => setProfileData({ ...profileData, emergencyContactName: val })}
-              placeholder="e.g. Spouse Name"
-            />
-            <InputField
-              label="Emergency Contact Number"
-              icon={Phone}
-              value={profileData.emergencyContactNumber}
-              onChange={(val) => setProfileData({ ...profileData, emergencyContactNumber: val })}
-              placeholder="00000 00000"
-            />
-          </div>
-
-          {/* Security & Identity */}
-          <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm">
-            <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-6 flex items-center gap-2">
-              <Shield className="h-4 w-4 text-indigo-600" />
-              Security & Identity
-            </h3>
-            <div className="space-y-4">
-              <InputField
-                label="Blood Group"
-                icon={Droplet}
-                value={profileData.bloodGroup}
-                onChange={(val) => setProfileData({ ...profileData, bloodGroup: val })}
-                placeholder="O+"
-              />
-              <div className={`bg-white rounded-2xl p-4 border border-gray-200 shadow-sm transition-all hover:border-indigo-300 focus-within:border-indigo-500 focus-within:shadow-md`}>
-                <label className="block text-xs font-bold text-gray-600 mb-2 ml-1">
-                  Date of Birth
-                </label>
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="p-2 rounded-xl flex-shrink-0 bg-indigo-50 text-indigo-600">
-                    <Calendar className="h-4 w-4" />
-                  </div>
-                  <input
-                    type="date"
-                    value={profileData.dob || ''}
-                    onChange={(e) => setProfileData({ ...profileData, dob: e.target.value })}
-                    className="flex-1 min-w-0 text-sm font-medium text-gray-800 bg-transparent focus:outline-none"
-                  />
-                </div>
-              </div>
-              <InputField
-                label="Nationality"
-                icon={MapPin}
-                value={profileData.nationality}
-                onChange={(val) => setProfileData({ ...profileData, nationality: val })}
-                placeholder="Indian"
-              />
-            </div>
-          </div>
-
-          {/* Spouse Information */}
-          <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm">
-            <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-6 flex items-center gap-2">
-              <User className="h-4 w-4 text-indigo-600" />
-              Spouse Information
-            </h3>
-            <div className="space-y-4">
-              <InputField
-                label="Spouse Name"
-                icon={User}
-                value={profileData.spouseName}
-                onChange={(val) => setProfileData({ ...profileData, spouseName: val })}
-                placeholder="e.g. Priya Sharma"
-              />
-              <InputField
-                label="Spouse Contact Number"
-                icon={Phone}
-                value={profileData.spouseContactNumber}
-                onChange={(val) => setProfileData({ ...profileData, spouseContactNumber: val })}
-                placeholder="00000 00000"
-              />
-            </div>
-          </div>
-
-          {/* Family Information */}
-          <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm">
-            <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-6 flex items-center gap-2">
-              <User className="h-4 w-4 text-indigo-600" />
-              Family Information
-            </h3>
-            <div className="space-y-4">
-              <InputField
-                label="Number of Children"
-                icon={User}
-                type="number"
-                value={profileData.childrenCount}
-                onChange={(val) => setProfileData({ ...profileData, childrenCount: val })}
-                placeholder="0"
-              />
-              
-              <div className="mt-4">
-                <div className="flex justify-between items-center mb-4">
-                  <h4 className="text-sm font-bold text-gray-700">Family Members</h4>
-                  <button 
-                    onClick={() => {
-                      const newFamilyMember = {
-                        id: Date.now(),
-                        name: '',
-                        relation: '',
-                        age: '',
-                        dob: '',
-                        bloodGroup: '',
-                        contactNo: ''
-                      };
-                      setProfileData({
-                        ...profileData,
-                        familyMembers: [...profileData.familyMembers, newFamilyMember]
-                      });
-                    }}
-                    className="flex items-center gap-1 bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition-colors"
-                  >
-                    <span>➕</span> Add Member
-                  </button>
-                </div>
-                
-                <div className="space-y-3">
-                  {profileData.familyMembers.map((member, index) => (
-                    <div key={member.id} className="bg-gray-50 rounded-2xl p-4 border border-gray-200">
-                      <div className="flex justify-between items-center mb-3">
-                        <h5 className="text-sm font-bold text-gray-700">Member {index + 1}</h5>
-                        <button 
-                          onClick={() => {
-                            const updatedFamily = profileData.familyMembers.filter((_, i) => i !== index);
-                            setProfileData({ ...profileData, familyMembers: updatedFamily });
-                          }}
-                          className="text-red-500 hover:text-red-700 text-sm font-medium"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] mb-1.5 ml-1">Name</label>
-                          <input
-                            type="text"
-                            value={member.name}
-                            onChange={(e) => {
-                              const updatedFamily = [...profileData.familyMembers];
-                              updatedFamily[index].name = e.target.value;
-                              setProfileData({ ...profileData, familyMembers: updatedFamily });
-                            }}
-                            className="w-full px-3 py-2 text-sm font-medium text-gray-800 bg-white rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            placeholder="Name"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] mb-1.5 ml-1">Relation</label>
-                          <input
-                            type="text"
-                            value={member.relation}
-                            onChange={(e) => {
-                              const updatedFamily = [...profileData.familyMembers];
-                              updatedFamily[index].relation = e.target.value;
-                              setProfileData({ ...profileData, familyMembers: updatedFamily });
-                            }}
-                            className="w-full px-3 py-2 text-sm font-medium text-gray-800 bg-white rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            placeholder="e.g. Son"
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-3 mt-3">
-                        <div>
-                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] mb-1.5 ml-1">Age / DOB</label>
-                          <input
-                            type="text"
-                            value={member.age}
-                            onChange={(e) => {
-                              const updatedFamily = [...profileData.familyMembers];
-                              updatedFamily[index].age = e.target.value;
-                              setProfileData({ ...profileData, familyMembers: updatedFamily });
-                            }}
-                            className="w-full px-3 py-2 text-sm font-medium text-gray-800 bg-white rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            placeholder="Age or DOB"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] mb-1.5 ml-1">Blood Group</label>
-                          <input
-                            type="text"
-                            value={member.bloodGroup}
-                            onChange={(e) => {
-                              const updatedFamily = [...profileData.familyMembers];
-                              updatedFamily[index].bloodGroup = e.target.value;
-                              setProfileData({ ...profileData, familyMembers: updatedFamily });
-                            }}
-                            className="w-full px-3 py-2 text-sm font-medium text-gray-800 bg-white rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            placeholder="e.g. O+"
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="mt-3">
-                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] mb-1.5 ml-1">Contact No (optional)</label>
-                        <input
-                          type="text"
-                          value={member.contactNo}
-                          onChange={(e) => {
-                            const updatedFamily = [...profileData.familyMembers];
-                            updatedFamily[index].contactNo = e.target.value;
-                            setProfileData({ ...profileData, familyMembers: updatedFamily });
-                          }}
-                          className="w-full px-3 py-2 text-sm font-medium text-gray-800 bg-white rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          placeholder="00000 00000"
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Social Media */}
-          <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm">
-            <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-6 flex items-center gap-2">
-              <svg className="h-4 w-4 text-indigo-600" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.09.682-.218.682-.485 0-.236-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.157-1.11-1.465-1.11-1.465-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.089 2.91.833.092-.647.35-1.088.635-1.338-2.22-.253-4.555-1.11-4.555-4.94 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.268 2.75 1.026A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.026 2.747-1.026.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.84-2.339 4.686-4.566 4.933.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.16 22 16.416 22 12c0-5.523-4.477-10-10-10z"/>
-              </svg>
-              Social Media
-            </h3>
-            <div className="space-y-4">
-              <InputField
-                label="Facebook"
-                icon={() => <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V15H7.562v-3h2.875V9.5c0-2.847 1.725-4.407 4.167-4.407 1.183 0 2.406.21 2.406.21v2.64h-1.36c-1.337 0-1.762.83-1.762 1.67v1.98h3.013l-.487 3H14v6.75c4.781-.751 8.438-4.888 8.438-9.879z"/></svg>}
-                value={profileData.facebook}
-                onChange={(val) => setProfileData({ ...profileData, facebook: val })}
-                placeholder="https://facebook.com/username"
-              />
-              <InputField
-                label="Twitter / X"
-                icon={() => <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>}
-                value={profileData.twitter}
-                onChange={(val) => setProfileData({ ...profileData, twitter: val })}
-                placeholder="https://twitter.com/username"
-              />
-              <InputField
-                label="Instagram"
-                icon={() => <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z" fill="none"/></svg>}
-                value={profileData.instagram}
-                onChange={(val) => setProfileData({ ...profileData, instagram: val })}
-                placeholder="https://instagram.com/username"
-              />
-              <InputField
-                label="LinkedIn"
-                icon={() => <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>}
-                value={profileData.linkedin}
-                onChange={(val) => setProfileData({ ...profileData, linkedin: val })}
-                placeholder="https://linkedin.com/in/username"
-              />
-              <InputField
-                label="WhatsApp"
-                icon={() => <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>}
-                value={profileData.whatsapp}
-                onChange={(val) => setProfileData({ ...profileData, whatsapp: val })}
-                placeholder="https://wa.me/phone_number"
-              />
-            </div>
-          </div>
+        {/* Name + role */}
+        <div className="flex-1 min-w-0">
+          <h2 className="text-xl font-bold text-gray-900 leading-tight">{profileData.name || 'Your Name'}</h2>
+          <p className="text-sm text-gray-500 mt-0.5">{profileData.role || 'Trustee'}</p>
+          {profileData.memberId && <p className="text-xs text-gray-400 mt-0.5">ID: {profileData.memberId}</p>}
         </div>
       </div>
-    
-      {/* Sticky Bottom Action Area */}
-      <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-white via-white to-transparent pt-10">
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold text-lg shadow-2xl shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-[0.98] flex items-center justify-center gap-3 group disabled:opacity-50"
-        >
-          {saving ? (
+
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200 bg-white sticky top-[73px] z-40">
+        {TABS.map(tab => (
+          <button key={tab} onClick={() => setActiveTab(tab)}
+            className={`flex-1 py-4 text-base font-semibold transition-all border-b-2 ${activeTab === tab ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      {/* ─── Tab: Details ─────────────────────────────── */}
+      {activeTab === 'Details' && (
+        <div className="px-4 pb-32">
+          {/* Basic — locked fields */}
+          <SectionHeader title="Basic Info" color="bg-gray-400" />
+          <div className="space-y-3">
+            <RowField label="Name" value={profileData.name} onChange={set('name')} disabled />
+            <RowField label="Contact Number" value={profileData.mobile} onChange={set('mobile')} disabled />
+            <RowField label="Member ID" value={profileData.memberId} onChange={set('memberId')} disabled />
+          </div>
+
+          {/* Personal */}
+          <SectionHeader title="Personal" color="bg-indigo-500" />
+          <div className="space-y-3">
+            <RowField label="Email Address" type="email" value={profileData.email} onChange={set('email')} placeholder="Add your email" />
+            <RowSelect label="Gender" value={profileData.gender} onChange={set('gender')} placeholder="Select gender"
+              options={[{ value: 'Male', label: 'Male' }, { value: 'Female', label: 'Female' }, { value: 'Other', label: 'Other' }]} />
+            <RowDate label="Date of Birth" value={profileData.dob} onChange={set('dob')} />
+            <RowSelect label="Blood Group" value={profileData.blood_group} onChange={set('blood_group')} placeholder="Select blood group"
+              options={['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(v => ({ value: v, label: v }))} />
+            <RowSelect label="Marital Status" value={profileData.marital_status} onChange={set('marital_status')} placeholder="Select status"
+              options={[{ value: 'Single', label: 'Single' }, { value: 'Married', label: 'Married' }, { value: 'Divorced', label: 'Divorced' }, { value: 'Widowed', label: 'Widowed' }]} />
+            <RowField label="Nationality" value={profileData.nationality} onChange={set('nationality')} placeholder="E.g. Indian" />
+          </div>
+
+          {/* Address */}
+          <SectionHeader title="Address" color="bg-emerald-500" />
+          <div className="space-y-3">
+            <RowField label="Home Address" value={profileData.address_home} onChange={set('address_home')} placeholder="Enter home address" />
+            <RowField label="Office Address" value={profileData.address_office} onChange={set('address_office')} placeholder="Enter office address" />
+          </div>
+
+          {/* Work */}
+          <SectionHeader title="Work" color="bg-amber-500" />
+          <div className="space-y-3">
+            <RowField label="Company Name" value={profileData.company_name} onChange={set('company_name')} placeholder="Enter company name" />
+            <RowField label="Resident Landline" value={profileData.resident_landline} onChange={set('resident_landline')} placeholder="Enter landline" />
+            <RowField label="Office Landline" value={profileData.office_landline} onChange={set('office_landline')} placeholder="Enter office landline" />
+          </div>
+
+          {/* Identity */}
+          <SectionHeader title="Identity" color="bg-violet-500" />
+          <div className="space-y-3">
+            <RowField label="Aadhaar ID" value={profileData.aadhaar_id} onChange={(val) => {
+              const d = val.replace(/\D/g, '').slice(0, 16);
+              set('aadhaar_id')(d.replace(/(\d{4})(?=\d)/g, '$1 '));
+            }} placeholder="0000 0000 0000 0000" />
+          </div>
+
+          {/* Emergency */}
+          <SectionHeader title="Emergency Contact" color="bg-red-500" />
+          <div className="space-y-3">
+            <RowField label="Contact Name" value={profileData.emergency_contact_name} onChange={set('emergency_contact_name')} placeholder="Full name" />
+            <RowField label="Contact Number" value={profileData.emergency_contact_number} onChange={set('emergency_contact_number')} placeholder="Phone number" />
+          </div>
+
+          {/* Spouse */}
+          <SectionHeader title="Spouse & Family" color="bg-pink-500" />
+          <div className="space-y-3">
+            <RowField label="Spouse Name" value={profileData.spouse_name} onChange={set('spouse_name')} placeholder="Enter spouse name" />
+            <RowField label="Spouse Contact" value={profileData.spouse_contact_number} onChange={set('spouse_contact_number')} placeholder="Enter contact number" />
+            <RowField label="No. of Children" type="number" value={profileData.children_count} onChange={set('children_count')} placeholder="0" />
+          </div>
+
+          {/* Social */}
+          <SectionHeader title="Social Media" color="bg-sky-500" />
+          <div className="space-y-3">
+            <RowField label="Facebook" value={profileData.facebook} onChange={set('facebook')} placeholder="Facebook URL or username" />
+            <RowField label="Twitter / X" value={profileData.twitter} onChange={set('twitter')} placeholder="Twitter handle" />
+            <RowField label="Instagram" value={profileData.instagram} onChange={set('instagram')} placeholder="Instagram handle" />
+            <RowField label="LinkedIn" value={profileData.linkedin} onChange={set('linkedin')} placeholder="LinkedIn URL" />
+            <RowField label="WhatsApp" value={profileData.whatsapp} onChange={set('whatsapp')} placeholder="WhatsApp number" />
+          </div>
+
+          {/* Elected position (show only if applicable) */}
+          {(profileData.position || profileData.location || profileData.isElectedMember) && (
             <>
-              <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-              Saving...
-            </>
-          ) : (
-            <>
-              <div className="bg-white/20 p-1.5 rounded-lg group-hover:rotate-12 transition-transform">
-                <Save className="h-5 w-5" />
+              <SectionHeader title="Elected Position" color="bg-teal-500" />
+              <div className="space-y-3">
+                <RowField label="Position" value={profileData.position} onChange={set('position')} placeholder="Enter position" />
+                <RowField label="Location" value={profileData.location} onChange={set('location')} placeholder="Enter location" />
               </div>
-              Save Profile
             </>
           )}
+        </div>
+      )}
+
+      {/* ─── Tab: Family Members ───────────────────────── */}
+      {activeTab === 'Family Members' && (
+        <div className="px-5 pb-32 pt-5">
+          {/* Add member button */}
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-base font-bold text-gray-900">Members</p>
+              <p className="text-xs text-gray-400">Add to book appointments for them</p>
+            </div>
+            <button onClick={addMember}
+              className="flex items-center gap-1.5 bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold active:scale-95 transition-all">
+              <Plus className="h-4 w-4" /> Add Member
+            </button>
+          </div>
+
+          {profileData.family_members.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
+              <Users className="h-12 w-12 text-gray-300" />
+              <p className="text-gray-600 font-semibold">No family members yet</p>
+              <p className="text-gray-400 text-sm px-8">Add members so you can book appointments for them</p>
+              <button onClick={addMember}
+                className="mt-2 px-6 py-3 bg-indigo-600 text-white rounded-xl text-sm font-semibold flex items-center gap-2 active:scale-95 transition-all">
+                <Plus className="h-4 w-4" /> Add First Member
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {profileData.family_members.map((member, idx) => {
+                const isOpen = expandedMember === idx;
+                const initials = (member.name || '?').charAt(0).toUpperCase();
+                return (
+                  <div key={member.id || idx} className="border border-gray-200 rounded-2xl overflow-hidden">
+                    {/* Member row header */}
+                    <div className="flex items-center gap-3 px-4 py-3.5 cursor-pointer" onClick={() => setExpandedMember(isOpen ? null : idx)}>
+                      <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-700 font-bold text-base flex-shrink-0">
+                        {initials}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 text-sm">{member.name || 'New Member'}</p>
+                        <p className="text-xs text-gray-400">{[member.relation, member.gender, member.age ? `Age ${member.age}` : ''].filter(Boolean).join(' · ') || 'Tap to fill details'}</p>
+                      </div>
+                      {isOpen ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
+                    </div>
+
+                    {/* Expanded form */}
+                    {isOpen && (
+                      <div className="border-t border-gray-100 px-4 pb-4 pt-3 space-y-3 bg-gray-50/50">
+                        {/* Name & Relation */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[11px] font-bold text-indigo-500 uppercase tracking-widest ml-0.5">Name *</label>
+                            <div className="rounded-2xl border-2 border-gray-100 bg-white focus-within:border-indigo-400 focus-within:shadow-[0_0_0_3px_rgba(99,102,241,0.08)] transition-all">
+                              <input type="text" value={member.name} onChange={e => updateMember(idx, 'name', e.target.value)}
+                                placeholder="Full name"
+                                className="w-full px-3 py-2.5 text-sm font-medium text-gray-900 bg-transparent focus:outline-none rounded-2xl" />
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[11px] font-bold text-indigo-500 uppercase tracking-widest ml-0.5">Relation *</label>
+                            <div className="relative rounded-2xl border-2 border-gray-100 bg-white focus-within:border-indigo-400 focus-within:shadow-[0_0_0_3px_rgba(99,102,241,0.08)] transition-all">
+                              <select value={member.relation} onChange={e => updateMember(idx, 'relation', e.target.value)}
+                                className="w-full px-3 py-2.5 text-sm font-medium text-gray-900 bg-transparent focus:outline-none appearance-none rounded-2xl pr-7">
+                                <option value="">Select</option>
+                                {['Spouse', 'Father', 'Mother', 'Son', 'Daughter', 'Brother', 'Sister', 'Grandfather', 'Grandmother', 'Uncle', 'Aunt', 'Other'].map(r => <option key={r} value={r}>{r}</option>)}
+                              </select>
+                              <div className="absolute inset-y-0 right-2 flex items-center pointer-events-none">
+                                <svg className="h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Gender chips */}
+                        <div>
+                          <label className="text-[11px] font-bold text-indigo-500 uppercase tracking-widest ml-0.5 block mb-2">Gender</label>
+                          <div className="flex gap-2">
+                            {['Male', 'Female', 'Other'].map(g => (
+                              <button key={g} type="button" onClick={() => updateMember(idx, 'gender', g)}
+                                className={`flex-1 py-2.5 rounded-2xl text-sm font-semibold border-2 transition-all ${member.gender === g ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white text-gray-500 border-gray-100 hover:border-indigo-300'}`}>
+                                {g}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Age & Blood Group */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[11px] font-bold text-indigo-500 uppercase tracking-widest ml-0.5">Age</label>
+                            <div className="rounded-2xl border-2 border-gray-100 bg-white focus-within:border-indigo-400 focus-within:shadow-[0_0_0_3px_rgba(99,102,241,0.08)] transition-all">
+                              <input type="number" value={member.age} min="0" max="120" onChange={e => updateMember(idx, 'age', e.target.value)}
+                                placeholder="Years"
+                                className="w-full px-3 py-2.5 text-sm font-medium text-gray-900 bg-transparent focus:outline-none rounded-2xl" />
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[11px] font-bold text-indigo-500 uppercase tracking-widest ml-0.5">Blood Group</label>
+                            <div className="relative rounded-2xl border-2 border-gray-100 bg-white focus-within:border-indigo-400 transition-all">
+                              <select value={member.blood_group} onChange={e => updateMember(idx, 'blood_group', e.target.value)}
+                                className="w-full px-3 py-2.5 text-sm font-medium text-gray-900 bg-transparent focus:outline-none appearance-none rounded-2xl pr-7">
+                                <option value="">Select</option>
+                                {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => <option key={bg} value={bg}>{bg}</option>)}
+                              </select>
+                              <div className="absolute inset-y-0 right-2 flex items-center pointer-events-none">
+                                <svg className="h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Contact No */}
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[11px] font-bold text-indigo-500 uppercase tracking-widest ml-0.5">Contact No</label>
+                          <div className="rounded-2xl border-2 border-gray-100 bg-white focus-within:border-indigo-400 focus-within:shadow-[0_0_0_3px_rgba(99,102,241,0.08)] transition-all">
+                            <input type="tel" value={member.contact_no} onChange={e => updateMember(idx, 'contact_no', e.target.value)}
+                              placeholder="Optional"
+                              className="w-full px-3 py-2.5 text-sm font-medium text-gray-900 bg-transparent focus:outline-none rounded-2xl" />
+                          </div>
+                        </div>
+
+                        {/* Remove */}
+                        <button type="button" onClick={() => removeMember(idx)}
+                          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-red-100 text-red-500 text-sm font-semibold bg-red-50/60 active:scale-95 transition-all">
+                          <Trash2 className="h-4 w-4" /> Remove Member
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Sticky Save Button */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-5 pt-4 bg-gradient-to-t from-white via-white to-transparent max-w-full md:max-w-[430px] md:mx-auto pointer-events-none">
+        <button onClick={handleSave} disabled={saving}
+          className="pointer-events-auto w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold text-base active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-xl shadow-indigo-200">
+          {saving ? <><div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" /> Saving...</> : <><Save className="h-5 w-5" /> Save Profile</>}
         </button>
       </div>
 
-      {/* Success Popup Modal */}
+      {/* Success Popup */}
       {showSuccessPopup && (
-        <div className="fixed inset-0 bg-black/50 z-[999] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center animate-in fade-in zoom-in">
-            <div className="mb-4 flex justify-center">
-              <div className="bg-green-100 p-3 rounded-full">
-                <CheckCircle className="h-12 w-12 text-green-600" />
-              </div>
+        <div className="fixed inset-0 bg-black/40 z-[999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center">
+            <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="h-10 w-10 text-green-600" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Success!</h2>
-            <p className="text-gray-600 mb-6 text-base">Your profile has been saved successfully</p>
-            <button
-              onClick={() => setShowSuccessPopup(false)}
-              className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 transition-colors active:scale-95"
-            >
-              Great!
-            </button>
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Saved!</h2>
+            <p className="text-gray-500 text-sm mb-6">Profile saved successfully.</p>
+            <button onClick={() => setShowSuccessPopup(false)} className="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold active:scale-95 transition-all">Done</button>
           </div>
         </div>
       )}
 
-      {/* Unsaved Changes Warning Popup */}
-      {showNavigationWarning && (
-        <div className="fixed inset-0 bg-black/50 z-[999] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full animate-in fade-in zoom-in">
-            <div className="mb-4 flex justify-center">
-              <div className="bg-amber-100 p-3 rounded-full">
-                <AlertCircle className="h-12 w-12 text-amber-600" />
-              </div>
+      {/* Unsaved Changes Warning */}
+      {showNavWarning && (
+        <div className="fixed inset-0 bg-black/40 z-[999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full">
+            <div className="bg-amber-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="h-10 w-10 text-amber-500" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Unsaved Changes</h2>
-            <p className="text-gray-600 mb-6 text-base">If you go to another page, your changes won't be saved. Would you like to save before leaving?</p>
+            <h2 className="text-xl font-bold text-gray-900 mb-1 text-center">Unsaved Changes</h2>
+            <p className="text-gray-500 text-sm text-center mb-6">Your changes will be lost if you leave now.</p>
             <div className="flex gap-3">
-              <button
-                onClick={handleCancelNavigation}
-                className="flex-1 bg-gray-200 text-gray-800 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-colors active:scale-95"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  await handleSave();
-                  setShowNavigationWarning(false);
-                  setHasUnsavedChanges(false);
-                  if (navigationTarget) {
-                    onNavigate(navigationTarget);
-                  }
-                }}
+              <button onClick={() => { setShowNavWarning(false); setNavTarget(null); if (navTarget) onNavigate(navTarget); }}
+                className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold active:scale-95 transition-all">Discard</button>
+              <button onClick={async () => { await handleSave(); setShowNavWarning(false); if (navTarget) onNavigate(navTarget); }}
                 disabled={saving}
-                className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-semibold hover:bg-indigo-700 transition-colors active:scale-95 disabled:opacity-50"
-              >
-                {saving ? 'Saving...' : 'Save'}
+                className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-semibold active:scale-95 transition-all disabled:opacity-50">
+                {saving ? 'Saving...' : 'Save & Go'}
               </button>
             </div>
           </div>

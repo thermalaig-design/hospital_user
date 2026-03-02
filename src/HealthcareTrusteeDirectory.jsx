@@ -419,12 +419,12 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
     }
   }, [selectedDirectory, activeTab, searchQuery, allMembers, committeeMembers, currentTabs]); // getMembersByDirectoryAndTab is stable due to useCallback
 
-  // Scroll to top of container when component mounts
+  // Scroll to top of the scrollable area whenever directory or tab changes
   useEffect(() => {
-    if (containerRef.current) {
-      containerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  }, []);
+  }, [selectedDirectory, activeTab]);
 
   // Pagination calculations
   const totalPages = Math.ceil(filteredMembers.length / itemsPerPage);
@@ -477,6 +477,7 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
   };
 
   const containerRef = useRef(null);
+  const scrollRef = useRef(null);
 
   return (
     <div className={`bg-white h-screen flex flex-col relative${isMenuOpen ? ' overflow-hidden' : ' overflow-hidden'}`} ref={containerRef}>
@@ -489,7 +490,7 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
           {isMenuOpen ? <X className="h-6 w-6 text-gray-700" /> : <Menu className="h-6 w-6 text-gray-700" />}
         </button>
         <h1 className="text-lg font-bold text-gray-800">
-          {selectedDirectory ? (selectedDirectory === 'healthcare' ? 'Healthcare Directory' :
+          {selectedDirectory ? (selectedDirectory === 'healthcare' ? 'Hospitals & Doctors Directory' :
             selectedDirectory === 'committee' ? 'Committee Directory' : 'Trustee & Patron Directory') : 'Directory Selection'}
         </h1>
         <button
@@ -534,7 +535,7 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
       />
 
       {/* ── Scrollable content area ── */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto" ref={scrollRef}>
 
         {/* Directory Selection Screen */}
         {!selectedDirectory && (
@@ -616,7 +617,7 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
                 </div>
                 <div className="flex-1">
                   <h3 className="font-bold text-gray-800 text-lg group-hover:text-indigo-600 transition-colors">
-                    Healthcare Directory
+                    Hospitals & Doctors Directory
                   </h3>
                   <p className="text-gray-600 text-sm mt-1">Find Doctors & Hospitals</p>
                   <div className="flex items-center gap-4 mt-3">
@@ -651,7 +652,7 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
                 <div className="flex items-center flex-1 mx-4">
                   <div>
                     <h1 className="text-2xl font-bold text-gray-800">
-                      {selectedDirectory === 'healthcare' ? 'Healthcare Directory' :
+                      {selectedDirectory === 'healthcare' ? 'Hospitals & Doctors Directory' :
                         selectedDirectory === 'committee' ? 'Committee Directory' : 'Trustee & Patron Directory'}
                     </h1>
                     <p className="text-gray-500 text-sm font-medium">
@@ -671,7 +672,7 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
                 </div>
                 <input
                   type="text"
-                  placeholder={`Search in ${selectedDirectory === 'healthcare' ? 'Healthcare' :
+                  placeholder={`Search in ${selectedDirectory === 'healthcare' ? 'Hospitals & Doctors' :
                     selectedDirectory === 'committee' ? 'Committee' : 'Trustee'} directory...`}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -1018,87 +1019,73 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
               )}
             </div>
 
-            {/* Pagination Controls - Improved Design */}
+            {/* Pagination Controls */}
             {filteredMembers.length > itemsPerPage && (
-              <div className="px-6 mt-6 mb-4">
-                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-4 border border-indigo-100 shadow-sm">
-                  <div className="flex flex-col items-center gap-4">
-                    {/* Pagination Buttons */}
-                    <div className="flex items-center gap-2 justify-center w-full">
-                      {/* Previous Button */}
-                      <button
-                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                        disabled={currentPage === 1}
-                        className={`p-2.5 rounded-xl transition-all shadow-sm ${currentPage === 1
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : 'bg-white text-indigo-600 hover:bg-indigo-50 hover:shadow-md border border-indigo-200'
-                          }`}
-                      >
-                        <ChevronLeft className="h-5 w-5" />
-                      </button>
+              <div className="px-4 mt-5 mb-4">
+                <div className="bg-indigo-50 rounded-2xl px-3 py-3 border border-indigo-100">
+                  <div className="flex items-center justify-between gap-2">
+                    {/* Prev */}
+                    <button
+                      onClick={() => {
+                        setCurrentPage(prev => Math.max(1, prev - 1));
+                        scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      disabled={currentPage === 1}
+                      className={`flex-shrink-0 px-3 py-2 rounded-xl text-xs font-bold transition-all ${currentPage === 1
+                        ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                        : 'bg-white text-indigo-600 border border-indigo-200 active:scale-95'
+                        }`}
+                    >
+                      ← Prev
+                    </button>
 
-                      {/* Page Numbers */}
-                      <div className="flex items-center gap-1.5">
-                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                          let pageNum;
-                          if (totalPages <= 5) {
-                            pageNum = i + 1;
-                          } else if (currentPage <= 3) {
-                            pageNum = i + 1;
-                          } else if (currentPage >= totalPages - 2) {
-                            pageNum = totalPages - 4 + i;
-                          } else {
-                            pageNum = currentPage - 2 + i;
-                          }
-
-                          return (
+                    {/* Page Numbers — max 3 shown */}
+                    <div className="flex items-center gap-1">
+                      {(() => {
+                        const pages = [];
+                        let start = Math.max(1, currentPage - 1);
+                        let end = Math.min(totalPages, start + 2);
+                        if (end - start < 2) start = Math.max(1, end - 2);
+                        for (let p = start; p <= end; p++) {
+                          pages.push(
                             <button
-                              key={pageNum}
-                              onClick={() => setCurrentPage(pageNum)}
-                              className={`w-10 h-10 rounded-xl font-bold text-sm transition-all shadow-sm ${currentPage === pageNum
-                                ? 'bg-indigo-600 text-white shadow-md scale-105'
-                                : 'bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200'
+                              key={p}
+                              onClick={() => {
+                                setCurrentPage(p);
+                                scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                              }}
+                              className={`w-9 h-9 rounded-xl font-bold text-sm transition-all ${currentPage === p
+                                ? 'bg-indigo-600 text-white shadow-md'
+                                : 'bg-white text-gray-600 border border-gray-200 active:scale-95'
                                 }`}
                             >
-                              {pageNum}
+                              {p}
                             </button>
                           );
-                        })}
-
-                        {totalPages > 5 && currentPage < totalPages - 2 && (
-                          <>
-                            <span className="px-2 text-gray-400 font-bold">...</span>
-                            <button
-                              onClick={() => setCurrentPage(totalPages)}
-                              className="w-10 h-10 rounded-xl font-bold text-sm bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-all border border-gray-200 shadow-sm"
-                            >
-                              {totalPages}
-                            </button>
-                          </>
-                        )}
-                      </div>
-
-                      {/* Next Button */}
-                      <button
-                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                        disabled={currentPage === totalPages}
-                        className={`p-2.5 rounded-xl transition-all shadow-sm ${currentPage === totalPages
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : 'bg-white text-indigo-600 hover:bg-indigo-50 hover:shadow-md border border-indigo-200'
-                          }`}
-                      >
-                        <ChevronRight className="h-5 w-5" />
-                      </button>
+                        }
+                        return pages;
+                      })()}
                     </div>
 
-                    {/* Showing Text Below Buttons */}
-                    <div className="text-sm text-gray-700 font-medium text-center">
-                      Showing <span className="font-bold text-indigo-600">{startIndex + 1}</span> to{' '}
-                      <span className="font-bold text-indigo-600">
-                        {Math.min(endIndex, filteredMembers.length)}
-                      </span>{' '}
-                      of <span className="font-bold text-indigo-600">{filteredMembers.length}</span> members
-                    </div>
+                    {/* Info */}
+                    <span className="text-[11px] text-gray-500 font-semibold whitespace-nowrap">
+                      {startIndex + 1}–{Math.min(endIndex, filteredMembers.length)} / {filteredMembers.length}
+                    </span>
+
+                    {/* Next */}
+                    <button
+                      onClick={() => {
+                        setCurrentPage(prev => Math.min(totalPages, prev + 1));
+                        scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      disabled={currentPage === totalPages}
+                      className={`flex-shrink-0 px-3 py-2 rounded-xl text-xs font-bold transition-all ${currentPage === totalPages
+                        ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                        : 'bg-white text-indigo-600 border border-indigo-200 active:scale-95'
+                        }`}
+                    >
+                      Next →
+                    </button>
                   </div>
                 </div>
               </div>

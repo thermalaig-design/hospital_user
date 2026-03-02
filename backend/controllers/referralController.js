@@ -86,6 +86,43 @@ export const createReferral = async (req, res, next) => {
       notes
     });
 
+    // Create in-app notification for referral
+    try {
+      const { supabase } = await import('../config/supabase.js').then(m => ({ supabase: m.supabase }));
+      
+      const referralMsg = 
+        `✅ आपका Referral Successfully Create हुआ है!
+
+👤 Patient: ${patientName}
+👨‍⚕️ Referred to: ${referredToDoctor}
+🏥 Department: ${department || 'General'}
+📋 Category: ${category}
+🏷️ Condition: ${medicalCondition}
+
+🆔 Referral ID: #${referral.id}
+Status: Pending ⏳
+
+${notes ? `📝 Additional Notes: ${notes}\n\n` : ''}Hospital पहुंचने से पहले कृपया अपना referral ID note कर लें।
+
+धन्यवाद! आपके स्वास्थ्य की देखभाल हमारी प्राथमिकता है।`;
+
+      await supabase
+        .from('notifications')
+        .insert({
+          user_id: String(patientPhone),
+          title: '✅ Referral Successfully Created!',
+          message: referralMsg,
+          type: 'referral',
+          is_read: false,
+          created_at: new Date().toISOString(),
+        });
+
+      console.log(`✅ Referral notification created for ${patientPhone}`);
+    } catch (notifError) {
+      console.error('⚠️ Error creating referral notification:', notifError.message);
+      // Don't fail the request if notification creation fails
+    }
+
     // Send email notification
     try {
       await sendReferralEmail({
@@ -209,6 +246,47 @@ export const updateReferralStatus = async (req, res, next) => {
     }
 
     const referral = await updateReferralStatusService(id, status);
+
+    // Create in-app notification for status update
+    try {
+      const { supabase } = await import('../config/supabase.js').then(m => ({ supabase: m.supabase }));
+      
+      const statusEmoji = { Approved: '✅', Rejected: '❌', Completed: '🎉', Pending: '⏳' };
+      const statusMsg = {
+        Approved: `आपका Referral Approved हो गया है! Hospital पहुंचने के लिए appointment book करें।`,
+        Rejected: `आपका Referral Reject किया गया है। विस्तृत जानकारी के लिए hospital से संपर्क करें।`,
+        Completed: `आपका Referral Successfully Complete हो गया है। Swasth rahein! 💪`,
+        Pending: `आपका Referral अभी Pending है। Hospital से जल्द ही confirmation मिलेगी।`,
+      };
+
+      const notificationMessage = 
+        `${statusEmoji[status] || '📋'} Referral Status Update
+
+👤 Patient: ${referral.patient_name}
+👨‍⚕️ Referred to: ${referral.referred_to_doctor}
+📋 Category: ${referral.category}
+🏷️ Status: ${status} ${statusEmoji[status] || ''}
+
+${statusMsg[status] || ''}
+
+🆔 Referral ID: #${referral.id}`;
+
+      await supabase
+        .from('notifications')
+        .insert({
+          user_id: String(referral.patient_phone),
+          title: `${statusEmoji[status] || '📋'} Referral ${status}`,
+          message: notificationMessage,
+          type: 'referral',
+          is_read: false,
+          created_at: new Date().toISOString(),
+        });
+
+      console.log(`✅ Referral status notification created for ${referral.patient_phone} - Status: ${status}`);
+    } catch (notifError) {
+      console.error('⚠️ Error creating referral status notification:', notifError.message);
+      // Don't fail the request if notification creation fails
+    }
 
     res.json({
       success: true,

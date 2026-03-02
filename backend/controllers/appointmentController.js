@@ -1,6 +1,113 @@
 import { supabase } from '../config/supabase.js';
-import { sendAppointmentEmail } from '../services/emailService.js';
 
+// â”€â”€â”€ Helper: Insert in-app notification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const sendInAppNotification = async ({ user_id, title, message, type = 'appointment_update' }) => {
+  try {
+    if (!user_id) {
+      console.log('âš ï¸ No user_id provided for notification');
+      return { success: false, error: 'No user_id provided' };
+    }
+    
+    const cleanUserId = String(user_id).trim();
+    console.log(`ðŸ“¤ Sending notification to Supabase:
+      - user_id: "${cleanUserId}"
+      - title: "${title}"
+      - type: "${type}"
+      - message length: ${message.length}`);
+    
+    const notificationData = {
+      user_id: cleanUserId,
+      title,
+      message,
+      type,
+      is_read: false,
+      created_at: new Date().toISOString(),
+    };
+    
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert([notificationData])
+      .select();
+    
+    if (error) {
+      console.error('âŒ SUPABASE ERROR - Notification insert failed:');
+      console.error('   Error Code:', error.code);
+      console.error('   Error Message:', error.message);
+      console.error('   Error Details:', error.details);
+      console.error('   Error Hint:', error.hint);
+      console.error('   Full Error Object:', JSON.stringify(error, null, 2));
+      return { success: false, error: error.message, details: error.details };
+    }
+    
+    console.log(`âœ… Notification inserted successfully to Supabase!`);
+    console.log('   Notification ID:', data?.[0]?.id);
+    console.log('   Data:', data);
+    return { success: true, data };
+  } catch (err) {
+    console.error('âŒ EXCEPTION in sendInAppNotification:');
+    console.error('   Error Message:', err.message);
+    console.error('   Error Stack:', err.stack);
+    return { success: false, error: err.message, exception: true };
+  }
+};
+
+// â”€â”€â”€ Helper: Format date for display â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const formatDateDisplay = (dateStr) => {
+  try {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  } catch { return dateStr; }
+};
+
+const buildSimpleAppointmentNotification = (status, appointment) => {
+  const key = String(status || '').trim().toLowerCase();
+  const map = {
+    booked: { emoji: '✅', label: 'Booked' },
+    confirmed: { emoji: '✅', label: 'Confirmed' },
+    cancelled: { emoji: '❌', label: 'Cancelled' },
+    rescheduled: { emoji: '📅', label: 'Rescheduled' },
+    completed: { emoji: '🎉', label: 'Completed' },
+    pending: { emoji: '⏳', label: 'Pending' },
+  };
+  const meta = map[key] || { emoji: '📋', label: status || 'Updated' };
+
+  return {
+    title: `${meta.emoji} Appointment ${meta.label}`,
+    message: `${meta.emoji} Appointment ${meta.label}\n👤 ${appointment.patient_name}\n🆔 #${appointment.id}`,
+  };
+};
+
+
+const digitsOnly = (value) => String(value || '').replace(/\D/g, '');
+
+const buildBookingNotificationRecipients = ({ patient_phone, user_id, patient_name, booking_for }) => {
+  const recipients = new Set();
+
+  const phoneRaw = String(patient_phone || '').trim();
+  const userRaw = String(user_id || '').trim();
+
+  if (phoneRaw) recipients.add(phoneRaw);
+  if (userRaw) recipients.add(userRaw);
+
+  const phoneDigits = digitsOnly(phoneRaw);
+  const userDigits = digitsOnly(userRaw);
+
+  if (phoneDigits) {
+    recipients.add(phoneDigits);
+    if (phoneDigits.length >= 10) recipients.add(phoneDigits.slice(-10));
+  }
+
+  if (userDigits) {
+    recipients.add(userDigits);
+    if (userDigits.length >= 10) recipients.add(userDigits.slice(-10));
+  }
+
+  if (booking_for === 'other' && patient_name) {
+    recipients.add(String(patient_name).trim());
+  }
+
+  return [...recipients].filter(Boolean);
+};
 /**
  * Book a new appointment
  */
@@ -29,14 +136,14 @@ export const bookAppointment = async (req, res, next) => {
 
     // Validate required fields
     if (!patient_name || !patient_phone || !doctor_id || !doctor_name ||
-        !appointment_date || !reason) {
+      !appointment_date || !reason) {
       return res.status(400).json({
         success: false,
         message: 'Please provide all required fields'
       });
     }
 
-    console.log('📝 Creating appointment:', {
+    console.log('ðŸ“ Creating appointment:', {
       patient_name,
       doctor_name,
       appointment_date
@@ -49,7 +156,7 @@ export const bookAppointment = async (req, res, next) => {
         {
           patient_name,
           patient_phone,
-          patient_email: patient_email || null,
+          patient_email: null,
           patient_age: patient_age || null,
           patient_gender: patient_gender || null,
           membership_number: membership_number || null,
@@ -74,40 +181,56 @@ export const bookAppointment = async (req, res, next) => {
       .single();
 
     if (error) {
-      console.error('❌ Database error:', error);
+      console.error('âŒ Database error:', error);
       throw error;
     }
 
-    console.log('✅ Appointment created successfully:', appointment.id);
+    console.log('âœ… Appointment created successfully:', appointment.id);
 
-    // Send confirmation email
-    try {
-      await sendAppointmentEmail({
-        to: 'thermal.aig@gmail.com',
-        patientName: patient_name,
-        patientPhone: patient_phone,
-        patientEmail: patient_email || 'Not provided',
-        doctorName: doctor_name,
-        department: department || 'Not specified',
-        appointmentDate: appointment_date,
-        appointmentType: appointment_type || 'General Consultation',
-        reason: reason,
-        appointmentId: appointment.id
+    // âŒ Email removed - Only create notification in Supabase
+    console.log('ðŸ“ Creating notification in Supabase...');
+
+    // Send in-app notification â€” booking confirmation (compact format)
+    const bookingNotif = buildSimpleAppointmentNotification('booked', {
+      id: appointment.id,
+      patient_name,
+    });
+
+        const recipientIds = buildBookingNotificationRecipients({
+      patient_phone,
+      user_id,
+      patient_name,
+      booking_for,
+    });
+
+    let notificationSent = false;
+
+    for (const recipientId of recipientIds) {
+      const notificationResult = await sendInAppNotification({
+        user_id: recipientId,
+        title: bookingNotif.title,
+        message: bookingNotif.message,
+        type: 'appointment_insert',
       });
-      console.log('📧 Confirmation email sent successfully');
-    } catch (emailError) {
-      console.error('❌ Failed to send email:', emailError);
-      // Don't fail the entire request if email fails
+
+      if (notificationResult.success) {
+        notificationSent = true;
+        console.log(`✅ Booking notification created for ${recipientId}`);
+      } else {
+        console.error(`❌ Booking notification FAILED for ${recipientId}:`, notificationResult.error);
+      }
     }
 
     res.status(201).json({
       success: true,
       message: 'Appointment booked successfully',
-      data: appointment
+      data: appointment,
+      notificationSent,
+      notificationRecipients: recipientIds,
     });
 
   } catch (error) {
-    console.error('❌ Error booking appointment:', error);
+    console.error('âŒ Error booking appointment:', error);
     next(error);
   }
 };
@@ -141,7 +264,7 @@ export const getUserAppointments = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error('❌ Error fetching user appointments:', error);
+    console.error('âŒ Error fetching user appointments:', error);
     next(error);
   }
 };
@@ -177,7 +300,7 @@ export const getAllAppointments = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error('❌ Error fetching appointments:', error);
+    console.error('âŒ Error fetching appointments:', error);
     next(error);
   }
 };
@@ -210,7 +333,7 @@ export const getAppointmentById = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error('❌ Error fetching appointment:', error);
+    console.error('âŒ Error fetching appointment:', error);
     next(error);
   }
 };
@@ -233,7 +356,7 @@ export const updateAppointmentStatus = async (req, res, next) => {
 
     const { data: appointment, error } = await supabase
       .from('appointments')
-      .update({ 
+      .update({
         status,
         updated_at: new Date().toISOString()
       })
@@ -243,14 +366,31 @@ export const updateAppointmentStatus = async (req, res, next) => {
 
     if (error) throw error;
 
+    // In-app notification for status change (compact format)
+    const statusNotif = buildSimpleAppointmentNotification(status, appointment);
+
+    const statusNotifResult = await sendInAppNotification({
+      user_id: appointment.patient_phone,
+      title: statusNotif.title,
+      message: statusNotif.message,
+      type: 'appointment_update',
+    });
+
+    if (statusNotifResult.success) {
+      console.log(`âœ… Status notification created for ${appointment.patient_phone} - Status: ${status}`);
+    } else {
+      console.error(`âŒ Status notification FAILED for ${appointment.patient_phone}:`, statusNotifResult.error);
+    }
+
     res.status(200).json({
       success: true,
       message: 'Appointment status updated successfully',
-      data: appointment
+      data: appointment,
+      notification: statusNotifResult
     });
 
   } catch (error) {
-    console.error('❌ Error updating appointment:', error);
+    console.error('âŒ Error updating appointment:', error);
     next(error);
   }
 };
@@ -264,7 +404,7 @@ export const cancelAppointment = async (req, res, next) => {
 
     const { data: appointment, error } = await supabase
       .from('appointments')
-      .update({ 
+      .update({
         status: 'Cancelled',
         updated_at: new Date().toISOString()
       })
@@ -274,6 +414,15 @@ export const cancelAppointment = async (req, res, next) => {
 
     if (error) throw error;
 
+    // In-app notification for cancellation (compact format)
+    const cancelNotif = buildSimpleAppointmentNotification('cancelled', appointment);
+    await sendInAppNotification({
+      user_id: appointment.patient_phone,
+      title: cancelNotif.title,
+      message: cancelNotif.message,
+      type: 'appointment_update',
+    });
+
     res.status(200).json({
       success: true,
       message: 'Appointment cancelled successfully',
@@ -281,7 +430,7 @@ export const cancelAppointment = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error('❌ Error cancelling appointment:', error);
+    console.error('âŒ Error cancelling appointment:', error);
     next(error);
   }
 };
@@ -306,7 +455,7 @@ export const deleteAppointment = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error('❌ Error deleting appointment:', error);
+    console.error('âŒ Error deleting appointment:', error);
     next(error);
   }
 }
@@ -317,7 +466,7 @@ export const deleteAppointment = async (req, res, next) => {
 export const updateAppointment = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { 
+    const {
       patient_name,
       patient_phone,
       patient_email,
@@ -340,7 +489,7 @@ export const updateAppointment = async (req, res, next) => {
     } = req.body;
 
     const updateData = {};
-    
+
     // Only add fields that are provided in the request
     if (patient_name !== undefined) updateData.patient_name = patient_name;
     if (patient_phone !== undefined) updateData.patient_phone = patient_phone;
@@ -361,9 +510,16 @@ export const updateAppointment = async (req, res, next) => {
     if (booking_for !== undefined) updateData.booking_for = booking_for;
     if (patient_relationship !== undefined) updateData.patient_relationship = patient_relationship;
     if (remark !== undefined) updateData.remark = remark;
-    
+
     // Always update the updated_at timestamp
     updateData.updated_at = new Date().toISOString();
+
+    // Fetch old appointment before updating to detect changes
+    const { data: oldAppointment } = await supabase
+      .from('appointments')
+      .select('appointment_date, appointment_time, remark, patient_name, patient_phone, doctor_name, department')
+      .eq('id', id)
+      .single();
 
     const { data: appointment, error } = await supabase
       .from('appointments')
@@ -374,6 +530,80 @@ export const updateAppointment = async (req, res, next) => {
 
     if (error) throw error;
 
+    // Detect what changed and send targeted notification
+    if (oldAppointment) {
+      const dateChanged = appointment_date && appointment_date !== oldAppointment.appointment_date;
+      const timeChanged = appointment_time && appointment_time !== oldAppointment.appointment_time;
+      const remarkChanged = remark !== null && remark !== undefined && remark !== oldAppointment.remark;
+
+      if (remarkChanged) {
+        console.log(`ðŸ“ Remark changed detected - old: "${oldAppointment.remark}" new: "${remark}"`);
+        
+        const remarkNotifResult = await sendInAppNotification({
+          user_id: appointment.patient_phone,
+          title: 'ðŸ’¬ à¤†à¤ªà¤•à¥€ Appointment à¤ªà¤° Doctor à¤•à¤¾ Message',
+          message:
+            `ðŸ’¬ Aapki Appointment par Naya Message ðŸ“
+
+ðŸ‘¤ Patient: ${appointment.patient_name}
+ðŸ‘¨â€âš•ï¸ Doctor: ${appointment.doctor_name}
+ðŸ“… Date: ${formatDateDisplay(appointment.appointment_date)}
+â° Time: ${appointment.appointment_time || 'Not specified'}
+
+ðŸ“ Doctor's Message:
+"${remark}"
+
+ðŸ†” Appointment ID: #${appointment.id}
+Status: ${appointment.status || 'Pending'}
+
+à¤•à¥ƒà¤ªà¤¯à¤¾ à¤¸à¤®à¤¯ à¤ªà¤° hospital à¤ªà¤¹à¥à¤‚à¤šà¥‡à¤‚à¥¤ à¤§à¤¨à¥à¤¯à¤µà¤¾à¤¦!`,
+          type: 'appointment_update',
+        });
+        
+        if (remarkNotifResult.success) {
+          console.log(`âœ… Remark notification created successfully`);
+        } else {
+          console.error(`âŒ Remark notification FAILED:`, remarkNotifResult.error);
+        }
+      }
+
+      if (dateChanged || timeChanged) {
+        console.log(`ðŸ“… Date/Time change detected - dateChanged: ${dateChanged}, timeChanged: ${timeChanged}`);
+        const rescheduledNotif = buildSimpleAppointmentNotification('rescheduled', appointment);
+        const dateTimeNotifResult = await sendInAppNotification({
+          user_id: appointment.patient_phone,
+          title: rescheduledNotif.title,
+          message: rescheduledNotif.message,
+          type: 'appointment_update',
+        });
+        
+        if (dateTimeNotifResult.success) {
+          console.log(`âœ… Date/Time notification created successfully`);
+        } else {
+          console.error(`âŒ Date/Time notification FAILED:`, dateTimeNotifResult.error);
+        }
+      }
+
+      // If status changed via update
+      if (status && status !== oldAppointment?.status) {
+        console.log(`ðŸ”„ Status change detected - old: "${oldAppointment?.status}" new: "${status}"`);
+        
+        const statusNotif = buildSimpleAppointmentNotification(status, appointment);
+        const statusNotifResult = await sendInAppNotification({
+          user_id: appointment.patient_phone,
+          title: statusNotif.title,
+          message: statusNotif.message,
+          type: 'appointment_update',
+        });
+        
+        if (statusNotifResult.success) {
+          console.log(`âœ… Status notification created for status: ${status}`);
+        } else {
+          console.error(`âŒ Status notification FAILED:`, statusNotifResult.error);
+        }
+      }
+    }
+
     res.status(200).json({
       success: true,
       message: 'Appointment updated successfully',
@@ -381,7 +611,7 @@ export const updateAppointment = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error('❌ Error updating appointment:', error);
+    console.error('âŒ Error updating appointment:', error);
     next(error);
   }
 };
@@ -427,22 +657,22 @@ const generateTimeSlots = (timeRange, dayShort) => {
 
           // Check various matching conditions
           const dayMatches = dayLower.includes(dayShortLower) ||
-                            dayLower === 'daily' ||
-                            dayLower === 'all' ||
-                            (dayLower === 'mon' && dayShortLower === 'mon') ||
-                            (dayLower === 'tue' && dayShortLower === 'tue') ||
-                            (dayLower === 'wed' && dayShortLower === 'wed') ||
-                            (dayLower === 'thu' && dayShortLower === 'thu') ||
-                            (dayLower === 'fri' && dayShortLower === 'fri') ||
-                            (dayLower === 'sat' && dayShortLower === 'sat') ||
-                            (dayLower === 'sun' && dayShortLower === 'sun') ||
-                            (dayLower.includes('monday') && dayShortLower === 'mon') ||
-                            (dayLower.includes('tuesday') && dayShortLower === 'tue') ||
-                            (dayLower.includes('wednesday') && dayShortLower === 'wed') ||
-                            (dayLower.includes('thursday') && dayShortLower === 'thu') ||
-                            (dayLower.includes('friday') && dayShortLower === 'fri') ||
-                            (dayLower.includes('saturday') && dayShortLower === 'sat') ||
-                            (dayLower.includes('sunday') && dayShortLower === 'sun');
+            dayLower === 'daily' ||
+            dayLower === 'all' ||
+            (dayLower === 'mon' && dayShortLower === 'mon') ||
+            (dayLower === 'tue' && dayShortLower === 'tue') ||
+            (dayLower === 'wed' && dayShortLower === 'wed') ||
+            (dayLower === 'thu' && dayShortLower === 'thu') ||
+            (dayLower === 'fri' && dayShortLower === 'fri') ||
+            (dayLower === 'sat' && dayShortLower === 'sat') ||
+            (dayLower === 'sun' && dayShortLower === 'sun') ||
+            (dayLower.includes('monday') && dayShortLower === 'mon') ||
+            (dayLower.includes('tuesday') && dayShortLower === 'tue') ||
+            (dayLower.includes('wednesday') && dayShortLower === 'wed') ||
+            (dayLower.includes('thursday') && dayShortLower === 'thu') ||
+            (dayLower.includes('friday') && dayShortLower === 'fri') ||
+            (dayLower.includes('saturday') && dayShortLower === 'sat') ||
+            (dayLower.includes('sunday') && dayShortLower === 'sun');
 
           if (dayMatches) {
             console.log('Day matches:', day, 'Processing time:', timePart);
@@ -500,8 +730,8 @@ const generateTimeSlots = (timeRange, dayShort) => {
 export const getAvailableSlots = async (req, res, next) => {
   try {
     const { doctorId, date, opdType } = req.params;
-    
-    console.log('🔍 Getting slots for:', { doctorId, date, opdType });
+
+    console.log('ðŸ” Getting slots for:', { doctorId, date, opdType });
 
     // Get doctor details
     const { data: doctor, error: doctorError } = await supabase
@@ -511,18 +741,18 @@ export const getAvailableSlots = async (req, res, next) => {
       .single();
 
     if (doctorError || !doctor) {
-      console.log('❌ Doctor not found:', doctorError);
+      console.log('âŒ Doctor not found:', doctorError);
       return res.status(404).json({
         success: false,
         message: 'Doctor not found'
       });
     }
 
-    console.log('👨‍⚕️ Doctor found:', doctor);
+    console.log('ðŸ‘¨â€âš•ï¸ Doctor found:', doctor);
 
     // Get time range for the OPD type
     const timeRange = opdType === 'General OPD' ? doctor.general_opd_days : doctor.private_opd_days;
-    console.log('⏰ Time range for', opdType, ':', timeRange);
+    console.log('â° Time range for', opdType, ':', timeRange);
 
     // If no time range, provide default slots
     if (!timeRange) {
@@ -545,14 +775,14 @@ export const getAvailableSlots = async (req, res, next) => {
     const selectedDate = new Date(date);
     const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' });
     const dayShort = dayName.substring(0, 3).toLowerCase();
-    console.log('📅 Selected date:', date, 'Day:', dayName, 'Short:', dayShort);
+    console.log('ðŸ“… Selected date:', date, 'Day:', dayName, 'Short:', dayShort);
 
     // Generate time slots from the time range for the selected day
     const slots = generateTimeSlots(timeRange, dayShort);
-    console.log('🎯 Generated slots:', slots);
+    console.log('ðŸŽ¯ Generated slots:', slots);
 
     if (slots.length === 0) {
-      console.log('⚠️ No slots generated. Time range may be invalid or day not matching.');
+      console.log('âš ï¸ No slots generated. Time range may be invalid or day not matching.');
       return res.status(200).json({
         success: true,
         data: [],
@@ -562,7 +792,7 @@ export const getAvailableSlots = async (req, res, next) => {
 
     // Since we no longer track appointment times, we can't filter based on booked times
     const availableSlots = slots;
-    console.log('✅ Available slots after filtering:', availableSlots);
+    console.log('âœ… Available slots after filtering:', availableSlots);
 
     res.status(200).json({
       success: true,
@@ -570,9 +800,10 @@ export const getAvailableSlots = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error('❌ Error getting available slots:', error);
+    console.error('âŒ Error getting available slots:', error);
     next(error);
   }
 }; // End of getAvailableSlots function
 
 // Approve and reject functions removed as per requirement
+

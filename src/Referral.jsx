@@ -1,15 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Users, Clock, FileText, UserPlus, Bell, ChevronRight, LogOut, Heart, Shield, Plus, ArrowRight, Pill, ShoppingCart, Calendar, Stethoscope, Building2, Phone, QrCode, Monitor, Brain, Package, FileCheck, Search, Filter, MapPin, Star, HelpCircle, BookOpen, Video, Headphones, Menu, X, Home as HomeIcon, Settings, Eye, Edit2, Info, CheckCircle2, ArrowLeft } from 'lucide-react';
-import { getDoctors, createReferral, getUserReferrals, getReferralCounts, updateReferral, deleteReferral } from './services/api';
+import { createReferral, getUserReferrals, getReferralCounts, updateReferral, deleteReferral } from './services/api';
+import { supabase } from './services/supabaseClient';
 
 import Sidebar from './components/Sidebar';
 
 const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, setNewReference }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const mainContainerRef = useRef(null);
+  const doctorPickerRef = useRef(null);
   const [referenceHistory, setReferenceHistory] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [doctorSearchTerm, setDoctorSearchTerm] = useState('');
+  const [showDoctorDropdown, setShowDoctorDropdown] = useState(false);
   const [counts, setCounts] = useState({ generalCount: 0, ewsCount: 0, total: 0 });
   const [selectedReferral, setSelectedReferral] = useState(null);
   const [editingReferral, setEditingReferral] = useState(null);
@@ -63,26 +67,63 @@ const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, s
 
 
 
-  // Load doctors from database
+  // Load doctors directly from Supabase opd_schedule table
   useEffect(() => {
     const fetchDoctors = async () => {
       try {
-        const response = await getDoctors();
-        if (response.success && response.data) {
-          // Transform doctors data for dropdown
-          const transformedDoctors = response.data.map(doc => ({
-            id: doc.original_id || doc.id,
-            name: doc.consultant_name || doc.Name,
-            specialization: doc.designation || doc.specialization || 'General',
-            department: doc.department || doc['Company Name'] || 'General'
-          }));
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('opd_schedule')
+          .select('id, consultant_name, designation, department')
+          .eq('is_active', true)
+          .order('consultant_name', { ascending: true });
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          const transformedDoctors = data
+            .filter(doc => {
+              const name = (doc.consultant_name || '').trim();
+              // Skip blank names or pure-digit entries (phone numbers)
+              return name.length > 0 && !/^\d+$/.test(name);
+            })
+            .map(doc => ({
+              id: doc.id,
+              name: doc.consultant_name,
+              specialization: doc.designation || 'General',
+              department: doc.department || 'General'
+            }));
           setDoctors(transformedDoctors);
+        } else {
+          setDoctors([]);
         }
       } catch (error) {
-        console.error('Error fetching doctors:', error);
+        console.error('Error fetching doctors from opd_schedule:', error);
+        setDoctors([]);
+      } finally {
+        setLoading(false);
       }
     };
     fetchDoctors();
+  }, []);
+
+  useEffect(() => {
+    if (!newReference?.referredTo || doctors.length === 0) return;
+    const selectedDoctor = doctors.find((doc) => String(doc.id) === String(newReference.referredTo));
+    if (selectedDoctor) {
+      const displayName = `${selectedDoctor.name}${selectedDoctor.department && selectedDoctor.department !== 'General' ? ` (${selectedDoctor.department})` : ''}`;
+      setDoctorSearchTerm(displayName);
+    }
+  }, [newReference?.referredTo, doctors]);
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (doctorPickerRef.current && !doctorPickerRef.current.contains(event.target)) {
+        setShowDoctorDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
 
   // Load references from backend and counts
@@ -190,6 +231,29 @@ const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, s
     return true;
   };
 
+  const filteredDoctors = doctors.filter((doc) => {
+    const term = doctorSearchTerm.trim().toLowerCase();
+    if (!term) return true;
+    return (
+      doc.name.toLowerCase().includes(term) ||
+      (doc.department || '').toLowerCase().includes(term) ||
+      (doc.specialization || '').toLowerCase().includes(term)
+    );
+  });
+
+  const handleDoctorSelect = (doctor) => {
+    setNewReference({
+      ...newReference,
+      referredTo: String(doctor.id),
+      doctorId: doctor.id,
+      doctorName: doctor.name || '',
+      doctorDepartment: doctor.department || ''
+    });
+    const displayName = `${doctor.name}${doctor.department && doctor.department !== 'General' ? ` (${doctor.department})` : ''}`;
+    setDoctorSearchTerm(displayName);
+    setShowDoctorDropdown(false);
+  };
+
   // Handle form submission
   const handleSubmit = async () => {
     if (!newReference.category) {
@@ -245,10 +309,15 @@ const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, s
           gender: '',
           phone: '',
           referredTo: '',
+          doctorId: null,
+          doctorName: '',
+          doctorDepartment: '',
           condition: '',
           category: '',
           notes: ''
         });
+        setDoctorSearchTerm('');
+        setShowDoctorDropdown(false);
         setReferenceView('menu');
         // Refresh data to show new referral
         await refreshData();
@@ -304,186 +373,156 @@ const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, s
 
       {referenceView === 'menu' && (
         <>
-          {/* Header Section */}
-          <div className="bg-white px-6 pt-6 pb-4">
-            <div className="flex items-center gap-4">
-              <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
-                <UserPlus className="h-12 w-12 text-indigo-600" />
+          {/* ── Top indigo hero header ── */}
+          <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 px-5 pt-5 pb-10">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-11 h-11 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0">
+                <UserPlus className="h-6 w-6 text-white" />
               </div>
-              <div className="flex-1">
-                <h1 className="text-2xl font-bold text-gray-800">Patient Referral</h1>
-                <p className="text-gray-500 text-sm font-medium">Refer patients to our doctors</p>
+              <div>
+                <h1 className="text-xl font-bold text-white">Patient Referral</h1>
+                <p className="text-indigo-200 text-xs font-medium">Refer patients to our specialists</p>
+              </div>
+            </div>
+
+            {/* ── Compact quota bar ── */}
+            <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-4 py-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-white text-xs font-semibold">Your Referral Quota</span>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${total >= 4 ? 'bg-red-400/80 text-white' : 'bg-green-400/80 text-white'}`}>
+                  {total >= 4 ? 'Limit Reached' : `${4 - total} left`}
+                </span>
+              </div>
+              {/* Progress bar */}
+              <div className="h-2 bg-white/20 rounded-full overflow-hidden mb-2">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${total >= 4 ? 'bg-red-400' : 'bg-green-400'}`}
+                  style={{ width: `${(total / 4) * 100}%` }}
+                />
+              </div>
+              <div className="flex items-center gap-3 text-xs text-indigo-100 font-medium">
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-gray-300 inline-block" />
+                  General: {generalCount}/2
+                </span>
+                <span className="text-white/30">|</span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-indigo-300 inline-block" />
+                  EWS: {ewsCount}/2
+                </span>
+                <span className="ml-auto font-bold text-white">{total}/4 used</span>
               </div>
             </div>
           </div>
 
-          {/* Reference Limits Info Card */}
-          <div className="px-6 mb-4">
-            <div className="bg-gray-50 rounded-2xl p-5 border border-gray-200">
-              <div className="flex items-start gap-3 mb-4">
-                <div className="bg-indigo-100 p-2 rounded-xl">
-                  <Info className="h-5 w-5 text-indigo-600" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-sm font-bold text-gray-800 mb-2">Reference Limits</h3>
-                  <p className="text-xs text-gray-600 mb-3">You can refer a maximum of 4 patients (2 General + 2 EWS)</p>
+          {/* ── White card pulled up over header ── */}
+          <div className="bg-gray-50 rounded-t-3xl -mt-5 pt-5 px-4 min-h-screen">
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between bg-white rounded-xl p-3 border border-gray-200">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-gray-400"></div>
-                        <span className="text-xs font-semibold text-gray-700">General Category</span>
-                      </div>
-                      <span className="text-xs font-bold text-gray-800">
-                        {generalCount}/2
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between bg-white rounded-xl p-3 border border-gray-200">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-                        <span className="text-xs font-semibold text-gray-700">EWS Category</span>
-                      </div>
-                      <span className="text-xs font-bold text-gray-800">
-                        {ewsCount}/2
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between pt-2 border-t border-gray-200">
-                      <span className="text-xs font-bold text-gray-800">Total References</span>
-                      <span className="text-xs font-bold text-indigo-600">
-                        {total}/4
-                      </span>
-                    </div>
-                    {loading && (
-                      <div className="mt-3 text-center">
-                        <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="px-6 py-4 space-y-4">
+            {/* ── PRIMARY CTA — New Reference ── */}
             <button
               onClick={() => setReferenceView('addNew')}
               disabled={total >= 4}
-              className={`w-full rounded-2xl shadow-sm p-6 transition-all active:scale-[0.98] group flex items-center justify-between ${total >= 4
-                  ? 'bg-gray-100 border border-gray-200 cursor-not-allowed opacity-60'
-                  : 'bg-indigo-600 hover:bg-indigo-700 shadow-lg'
+              className={`w-full rounded-3xl p-5 mb-5 transition-all active:scale-[0.97] group relative overflow-hidden shadow-xl ${total >= 4
+                  ? 'bg-gray-200 border-2 border-gray-300 cursor-not-allowed'
+                  : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
                 }`}
             >
-              <div className={`flex items-center gap-4 text-left ${total >= 4 ? 'text-gray-600' : 'text-white'}`}>
-                <div className={`p-3 rounded-xl ${total >= 4 ? 'bg-gray-200' : 'bg-white/20'}`}>
-                  <Plus className="h-8 w-8" />
+              {/* subtle shimmer hint */}
+              {total < 4 && (
+                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -skew-x-12 animate-[shimmer_2.5s_ease-in-out_infinite]" />
+              )}
+              <div className="relative flex items-center gap-4">
+                {/* Icon */}
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 ${total >= 4 ? 'bg-gray-300' : 'bg-white/20'
+                  }`}>
+                  <Plus className={`h-8 w-8 ${total >= 4 ? 'text-gray-500' : 'text-white'}`} />
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold">New Reference</h3>
-                  <p className={`text-xs font-medium ${total >= 4 ? 'text-gray-500' : 'text-indigo-100'}`}>
-                    {total >= 4 ? 'Reference limit reached' : 'Refer a patient to specialist'}
+                {/* Text */}
+                <div className="flex-1 text-left">
+                  <p className={`text-lg font-extrabold leading-tight ${total >= 4 ? 'text-gray-500' : 'text-white'}`}>
+                    {total >= 4 ? 'Quota Full' : 'New Reference'}
+                  </p>
+                  <p className={`text-xs font-medium mt-0.5 ${total >= 4 ? 'text-gray-400' : 'text-indigo-100'}`}>
+                    {total >= 4 ? 'You have used all 4 referral slots' : 'Tap here to refer a patient →'}
                   </p>
                 </div>
+                <ChevronRight className={`h-6 w-6 flex-shrink-0 transition-transform group-hover:translate-x-1 ${total >= 4 ? 'text-gray-400' : 'text-white/70 group-hover:text-white'
+                  }`} />
               </div>
-              <ChevronRight className={`h-6 w-6 ${total >= 4 ? 'text-gray-400' : 'text-white/50 group-hover:text-white'}`} />
             </button>
 
-            {/* Reference History List */}
-            <div className="mt-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-800">Reference History</h3>
+            {/* ── Reference History ── */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-base font-bold text-gray-800">Reference History</h3>
                 {referenceHistory.length > 0 && (
-                  <span className="text-xs font-semibold text-gray-500">
-                    {referenceHistory.length} {referenceHistory.length === 1 ? 'reference' : 'references'}
+                  <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+                    {referenceHistory.length} record{referenceHistory.length !== 1 ? 's' : ''}
                   </span>
                 )}
               </div>
 
-              {referenceHistory.length === 0 ? (
-                <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200 text-center">
-                  <div className="bg-white p-3 rounded-full w-12 h-12 mx-auto mb-3 flex items-center justify-center">
-                    <FileText className="h-6 w-6 text-gray-400" />
+              {loading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-indigo-600" />
+                </div>
+              ) : referenceHistory.length === 0 ? (
+                <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm text-center">
+                  <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <FileText className="h-7 w-7 text-gray-300" />
                   </div>
-                  <p className="text-sm text-gray-500">No references yet</p>
+                  <p className="font-semibold text-gray-500 text-sm">No references yet</p>
+                  <p className="text-xs text-gray-400 mt-1">Tap "New Reference" above to get started</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {referenceHistory.map(ref => (
-                    <div key={ref.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 group hover:shadow-md hover:border-gray-300 transition-all">
+                    <div key={ref.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 group hover:shadow-md transition-all">
                       <div className="flex items-start justify-between mb-3">
                         <div
                           className="flex items-center gap-3 flex-1 cursor-pointer"
                           onClick={() => setSelectedReferral(ref)}
                         >
-                          <div className={`p-2.5 rounded-xl transition-colors ${ref.category === 'EWS'
-                              ? 'bg-indigo-50 text-indigo-600'
-                              : 'bg-gray-100 text-gray-600'
-                            }`}>
+                          <div className={`p-2.5 rounded-xl flex-shrink-0 ${ref.category === 'EWS' ? 'bg-indigo-50 text-indigo-600' : 'bg-gray-100 text-gray-600'}`}>
                             <User className="h-5 w-5" />
                           </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h4 className="font-bold text-gray-800 text-sm leading-tight">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                              <h4 className="font-bold text-gray-800 text-sm leading-tight truncate">
                                 {ref.patient_name || ref.patientName}
                               </h4>
-                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${ref.category === 'EWS'
-                                  ? 'bg-indigo-100 text-indigo-700'
-                                  : 'bg-gray-100 text-gray-700'
-                                }`}>
+                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${ref.category === 'EWS' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-700'}`}>
                                 {ref.category}
                               </span>
                             </div>
-                            <p className="text-gray-500 text-xs font-medium">
-                              {ref.referred_to_doctor || ref.referredTo}
-                            </p>
+                            <p className="text-gray-500 text-xs font-medium truncate">{ref.referred_to_doctor || ref.referredTo}</p>
                             {(ref.medical_condition || ref.condition) && (
-                              <p className="text-gray-400 text-xs mt-1 line-clamp-1">
-                                {ref.medical_condition || ref.condition}
-                              </p>
+                              <p className="text-gray-400 text-xs mt-0.5 line-clamp-1">{ref.medical_condition || ref.condition}</p>
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[9px] font-bold px-2 py-1 rounded-full whitespace-nowrap ${ref.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                              ref.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-blue-100 text-blue-700'
-                            }`}>
+                        <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                          <span className={`text-[9px] font-bold px-2 py-1 rounded-full ${ref.status === 'Completed' ? 'bg-green-100 text-green-700' : ref.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'}`}>
                             {ref.status}
                           </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingReferral(ref);
-                            }}
-                            className="p-1.5 rounded-lg hover:bg-indigo-50 text-indigo-600 transition-colors"
-                          >
+                          <button onClick={(e) => { e.stopPropagation(); setEditingReferral(ref); }} className="p-1.5 rounded-lg hover:bg-indigo-50 text-indigo-600 transition-colors">
                             <Edit2 className="h-4 w-4" />
                           </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (confirm('Are you sure you want to delete this referral?')) {
-                                handleDeleteReferral(ref.id);
-                              }
-                            }}
-                            className="p-1.5 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
-                          >
+                          <button onClick={(e) => { e.stopPropagation(); if (confirm('Are you sure you want to delete this referral?')) { handleDeleteReferral(ref.id); } }} className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors">
                             <X className="h-4 w-4" />
                           </button>
                         </div>
                       </div>
-
-                      <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                        <div className="flex items-center gap-2 text-gray-500">
-                          <Calendar className="h-3.5 w-3.5" />
-                          <span className="text-xs font-semibold">
-                            {ref.created_at ? new Date(ref.created_at).toLocaleDateString('en-IN') : (ref.date || 'N/A')}
-                          </span>
-                        </div>
+                      <div className="flex items-center justify-between pt-2.5 border-t border-gray-50 text-xs text-gray-400">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {ref.created_at ? new Date(ref.created_at).toLocaleDateString('en-IN') : (ref.date || 'N/A')}
+                        </span>
                         {(ref.patient_phone || ref.phone) && (
-                          <div className="flex items-center gap-2 text-gray-500">
-                            <Phone className="h-3.5 w-3.5" />
-                            <span className="text-xs font-semibold">{ref.patient_phone || ref.phone}</span>
-                          </div>
+                          <span className="flex items-center gap-1">
+                            <Phone className="h-3 w-3" />
+                            {ref.patient_phone || ref.phone}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -495,6 +534,7 @@ const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, s
         </>
       )}
 
+
       {referenceView === 'addNew' && (
         <div className="px-6 py-4">
           <button
@@ -505,10 +545,15 @@ const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, s
                 gender: '',
                 phone: '',
                 referredTo: '',
+                doctorId: null,
+                doctorName: '',
+                doctorDepartment: '',
                 condition: '',
                 category: '',
                 notes: ''
               });
+              setDoctorSearchTerm('');
+              setShowDoctorDropdown(false);
               setReferenceView('menu');
             }}
             className="flex items-center gap-2 text-indigo-600 font-bold text-sm mb-6 hover:underline"
@@ -533,10 +578,10 @@ const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, s
                   }
                 }}
                 className={`p-4 rounded-2xl border-2 transition-all ${newReference.category === 'General'
-                    ? 'border-indigo-500 bg-indigo-50'
-                    : canAddReference('General')
-                      ? 'border-gray-200 bg-white hover:border-gray-300'
-                      : 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
+                  ? 'border-indigo-500 bg-indigo-50'
+                  : canAddReference('General')
+                    ? 'border-gray-200 bg-white hover:border-gray-300'
+                    : 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
                   }`}
                 disabled={!canAddReference('General')}
               >
@@ -562,10 +607,10 @@ const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, s
                   }
                 }}
                 className={`p-4 rounded-2xl border-2 transition-all ${newReference.category === 'EWS'
-                    ? 'border-indigo-500 bg-indigo-50'
-                    : canAddReference('EWS')
-                      ? 'border-gray-200 bg-white hover:border-gray-300'
-                      : 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
+                  ? 'border-indigo-500 bg-indigo-50'
+                  : canAddReference('EWS')
+                    ? 'border-gray-200 bg-white hover:border-gray-300'
+                    : 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
                   }`}
                 disabled={!canAddReference('EWS')}
               >
@@ -647,29 +692,55 @@ const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, s
 
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Refer To Doctor *</label>
-              <select
-                required
-                value={newReference.referredTo}
-                onChange={(e) => {
-                  const doctorId = parseInt(e.target.value);
-                  const selectedDoctor = doctors.find(d => d.id === doctorId);
-                  setNewReference({
-                    ...newReference,
-                    referredTo: doctorId.toString(),
-                    doctorId: selectedDoctor?.id || null,
-                    doctorName: selectedDoctor?.name || '',
-                    doctorDepartment: selectedDoctor?.department || ''
-                  });
-                }}
-                className="block w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:border-indigo-500 transition-all text-sm font-medium"
-              >
-                <option value="">Choose doctor</option>
-                {doctors.map(doc => (
-                  <option key={doc.id} value={doc.id}>
-                    {doc.name} - {doc.specialization} ({doc.department})
-                  </option>
-                ))}
-              </select>
+              <div ref={doctorPickerRef} className="relative">
+                <input
+                  type="text"
+                  required
+                  value={doctorSearchTerm}
+                  onFocus={() => setShowDoctorDropdown(true)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setDoctorSearchTerm(value);
+                    setShowDoctorDropdown(true);
+                    setNewReference({
+                      ...newReference,
+                      referredTo: '',
+                      doctorId: null,
+                      doctorName: '',
+                      doctorDepartment: ''
+                    });
+                  }}
+                  placeholder={loading ? 'Loading doctors...' : 'Select doctor'}
+                  className="block w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:border-indigo-500 transition-all text-sm font-medium"
+                  disabled={loading || doctors.length === 0}
+                />
+                {showDoctorDropdown && !loading && doctors.length > 0 && (
+                  <div className="absolute z-30 mt-2 w-full bg-white border border-gray-200 rounded-2xl shadow-lg max-h-60 overflow-y-auto">
+                    {filteredDoctors.length === 0 ? (
+                      <div className="px-4 py-3 text-sm text-gray-500">No doctor found</div>
+                    ) : (
+                      filteredDoctors.slice(0, 50).map((doc) => (
+                        <button
+                          key={doc.id}
+                          type="button"
+                          onClick={() => handleDoctorSelect(doc)}
+                          className="w-full text-left px-4 py-3 hover:bg-indigo-50 transition-colors border-b last:border-b-0 border-gray-100"
+                        >
+                          <p className="text-sm font-semibold text-gray-800">{doc.name}</p>
+                          <p className="text-xs text-gray-500">
+                            {[doc.specialization, doc.department].filter(Boolean).join(' - ')}
+                          </p>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+              {!loading && doctors.length === 0 && (
+                <p className="text-xs text-red-500 mt-1">
+                  No doctors found. Please contact admin to add doctors to the system.
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -688,8 +759,8 @@ const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, s
               type="submit"
               disabled={!newReference.category || !canAddReference(newReference.category) || loading}
               className={`w-full mt-6 py-4 rounded-2xl font-bold text-base shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 ${!newReference.category || !canAddReference(newReference.category) || loading
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-indigo-600 text-white hover:bg-indigo-700'
                 }`}
             >
               {loading ? (
@@ -745,8 +816,8 @@ const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, s
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-4 flex-1">
                       <div className={`p-3 rounded-xl transition-colors ${ref.category === 'EWS'
-                          ? 'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white'
-                          : 'bg-gray-100 text-gray-600 group-hover:bg-gray-600 group-hover:text-white'
+                        ? 'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white'
+                        : 'bg-gray-100 text-gray-600 group-hover:bg-gray-600 group-hover:text-white'
                         }`}>
                         <User className="h-6 w-6" />
                       </div>
@@ -756,8 +827,8 @@ const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, s
                             {ref.patient_name || ref.patientName}
                           </h3>
                           <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${ref.category === 'EWS'
-                              ? 'bg-indigo-100 text-indigo-700'
-                              : 'bg-gray-100 text-gray-700'
+                            ? 'bg-indigo-100 text-indigo-700'
+                            : 'bg-gray-100 text-gray-700'
                             }`}>
                             {ref.category}
                           </span>
@@ -773,8 +844,8 @@ const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, s
                       </div>
                     </div>
                     <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap ${ref.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                        ref.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-blue-100 text-blue-700'
+                      ref.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-blue-100 text-blue-700'
                       }`}>
                       {ref.status}
                     </span>
@@ -843,8 +914,8 @@ const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, s
                 <div>
                   <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Category</label>
                   <span className={`inline-block mt-1 px-3 py-1 rounded-full text-xs font-bold ${selectedReferral.category === 'EWS'
-                      ? 'bg-indigo-100 text-indigo-700'
-                      : 'bg-gray-100 text-gray-700'
+                    ? 'bg-indigo-100 text-indigo-700'
+                    : 'bg-gray-100 text-gray-700'
                     }`}>
                     {selectedReferral.category}
                   </span>
@@ -868,8 +939,8 @@ const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, s
                 <div>
                   <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Status</label>
                   <span className={`inline-block mt-1 px-3 py-1 rounded-full text-xs font-bold ${selectedReferral.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                      selectedReferral.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-blue-100 text-blue-700'
+                    selectedReferral.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-blue-100 text-blue-700'
                     }`}>
                     {selectedReferral.status}
                   </span>
@@ -1011,13 +1082,22 @@ const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, s
                   });
                 }}
                 className="block w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:bg-white focus:border-indigo-500 transition-all text-sm font-medium"
+                disabled={loading && doctors.length === 0} // Disable while loading and no doctors available
               >
-                <option value="">Choose doctor</option>
-                {doctors.map(doc => (
-                  <option key={doc.id} value={doc.id}>
-                    {doc.name} - {doc.specialization} ({doc.department})
-                  </option>
-                ))}
+                {loading && doctors.length === 0 ? (
+                  <option value="">Loading doctors...</option>
+                ) : doctors.length === 0 ? (
+                  <option value="">No doctors available</option>
+                ) : (
+                  <>
+                    <option value="">Choose doctor</option>
+                    {doctors.map(doc => (
+                      <option key={doc.id} value={doc.id}>
+                        {doc.name} - {doc.specialization} ({doc.department})
+                      </option>
+                    ))}
+                  </>
+                )}
               </select>
             </div>
 
@@ -1046,8 +1126,8 @@ const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, s
               type="submit"
               disabled={loading}
               className={`w-full mt-6 py-4 rounded-2xl font-bold text-base shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 ${loading
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-indigo-600 text-white hover:bg-indigo-700'
                 }`}
             >
               {loading ? (
@@ -1067,3 +1147,4 @@ const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, s
 };
 
 export default Referral;
+
