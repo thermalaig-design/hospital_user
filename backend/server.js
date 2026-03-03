@@ -39,17 +39,22 @@ const corsOptions = {
   origin: function(origin, callback) {
     const allowedOrigins = [
       'http://localhost:5173', // Vite default port
+      'https://localhost', // Capacitor Android/iOS WebView origin
       'http://localhost:3000', // React default port
       'http://localhost:3001', // Alternative React port
       'http://localhost:5002', // Alternative port
-     
+      'https://localhost:5002', // Local HTTPS backend testing
+      'capacitor://localhost', // Native Capacitor origin
+      'ionic://localhost', // Legacy Ionic origin
     ];
     
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
+    const isLocalhostOrigin = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+
     // Check if origin is in allowed list
-    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+    if (allowedOrigins.indexOf(origin) !== -1 || isLocalhostOrigin || process.env.NODE_ENV === 'development') {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));

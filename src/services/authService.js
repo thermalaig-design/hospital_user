@@ -1,8 +1,16 @@
 // authService.js - Frontend API calls
-// Point to local backend for testing
-const API_URL = import.meta.env.DEV 
-  ? 'http://localhost:5002/api/auth' 
-  : 'https://mah.contractmitra.in/api/auth';
+const resolveDevAuthApiUrl = () => {
+  if (typeof window === 'undefined') return 'http://localhost:5002/api/auth';
+
+  const protocol = window.location.protocol || 'http:';
+  const hostname = window.location.hostname || 'localhost';
+  return `${protocol}//${hostname}:5002/api/auth`;
+};
+
+const API_URL = import.meta.env.VITE_AUTH_API_URL ||
+  (import.meta.env.DEV
+    ? resolveDevAuthApiUrl()
+    : 'https://mah.contractmitra.in/api/auth');
 
 
 /**

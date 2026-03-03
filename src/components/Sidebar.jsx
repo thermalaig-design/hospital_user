@@ -298,8 +298,13 @@ const Sidebar = ({ isOpen, onClose, onNavigate, currentPage }) => {
           <div className="px-3 pb-8 border-t border-gray-100">
             <button
               onClick={() => {
+                localStorage.removeItem('user');
                 localStorage.removeItem('isLoggedIn');
-                navigate('/login');
+                localStorage.removeItem('lastVisitedRoute');
+                sessionStorage.removeItem('selectedMember');
+                sessionStorage.removeItem('previousScreen');
+                sessionStorage.removeItem('previousScreenName');
+                navigate('/login', { replace: true });
                 if (onClose) onClose();
               }}
               className="w-full flex items-center justify-between px-4 rounded-xl bg-red-50 text-red-600 font-semibold active:bg-red-100 transition-colors active:scale-95 select-none"

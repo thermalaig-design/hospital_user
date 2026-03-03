@@ -1,5 +1,40 @@
 import { supabase } from '../config/supabase.js';
 
+// Helper: Insert in-app notification
+const sendInAppNotification = async ({ user_id, title, message, type = 'appointment_update' }) => {
+  try {
+    if (!user_id) {
+      console.log('No user_id provided for notification');
+      return { success: false, error: 'No user_id provided' };
+    }
+
+    const cleanUserId = String(user_id).trim();
+    const notificationData = {
+      user_id: cleanUserId,
+      title,
+      message,
+      type,
+      is_read: false,
+      created_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert([notificationData])
+      .select();
+
+    if (error) {
+      console.error('Notification insert failed:', error.message);
+      return { success: false, error: error.message, details: error.details };
+    }
+
+    return { success: true, data };
+  } catch (err) {
+    console.error('Exception in sendInAppNotification:', err.message);
+    return { success: false, error: err.message, exception: true };
+  }
+};
+
 // -------------------------------------------------- Helper: Format date for display --------------------------------------------------
 const formatDateDisplay = (dateStr) => {
   try {
@@ -58,7 +93,7 @@ const buildSimpleAppointmentNotification = (status, appointment) => {
       `Status: ${statusText}`,
   };
 };
-const digitsOnly = (value) => String(value || '').replace(/\\D/g, '');
+const digitsOnly = (value) => String(value || '').replace(/\D/g, '');
 
 const buildBookingNotificationRecipients = ({ patient_phone, user_id, patient_name, booking_for }) => {
   const recipients = new Set();
@@ -516,15 +551,15 @@ export const updateAppointment = async (req, res, next) => {
       const timeChanged = appointment_time && appointment_time !== oldAppointment.appointment_time;
       const remarkChanged = remark !== null && remark !== undefined && remark !== oldAppointment.remark;
 
-            if (remarkChanged) {
-        console.log(`?? Remark changed detected - old: "${oldAppointment.remark}" new: "${remark}"`);
+      if (remarkChanged) {
+        console.log(`Remark changed detected - old: "${oldAppointment.remark}" new: "${remark}"`);
         const doctorDisplayName = formatDoctorDisplayName(appointment.doctor_name);
-        
+
         const remarkNotifResult = await sendInAppNotification({
           user_id: appointment.patient_phone,
-          title: '? Appointment Booked',
+          title: 'Appointment Booked',
           message:
-            `? Appointment Booked
+            `Appointment Booked
 
 Hello ${appointment.patient_name || 'Patient'},
 Your appointment is successfully booked and updated by admin.
@@ -541,18 +576,11 @@ Doctor Note:
 Please arrive at the hospital on time.`,
           type: 'appointment_update',
         });
-        
+
         if (remarkNotifResult.success) {
-          console.log(`? Remark notification created successfully`);
+          console.log('Remark notification created successfully');
         } else {
-          console.error(`? Remark notification FAILED:`, remarkNotifResult.error);
-        }
-      });
-        
-        if (remarkNotifResult.success) {
-          console.log(`âœ… Remark notification created successfully`);
-        } else {
-          console.error(`âŒ Remark notification FAILED:`, remarkNotifResult.error);
+          console.error('Remark notification FAILED:', remarkNotifResult.error);
         }
       }
 

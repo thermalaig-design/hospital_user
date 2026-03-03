@@ -40,6 +40,8 @@ import {
 } from './hooks';
 
 const HospitalTrusteeApp = () => {
+  const LAST_VISITED_ROUTE_KEY = 'lastVisitedRoute';
+  const PUBLIC_ROUTES = ['/login', '/otp-verification', '/special-otp-verification', '/terms-and-conditions', '/privacy-policy'];
   const navigate = useNavigate();
   const location = useLocation();
   const [isMember] = useState(true);
@@ -54,6 +56,46 @@ const HospitalTrusteeApp = () => {
   useAndroidSafeArea();
   useAndroidScreenOrientation('PORTRAIT');
   useAndroidKeyboard();
+
+  const isAuthenticated = () => {
+    const user = localStorage.getItem('user');
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    return !!user && user !== 'null' && user !== 'undefined' && isLoggedIn;
+  };
+
+  const clearAuthAndRedirectToLogin = () => {
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('user');
+    localStorage.removeItem(LAST_VISITED_ROUTE_KEY);
+    sessionStorage.removeItem('selectedMember');
+    sessionStorage.removeItem('previousScreen');
+    sessionStorage.removeItem('previousScreenName');
+    navigate('/login', { replace: true });
+  };
+
+  // Persist current route so app can resume where user left off after app restart.
+  useEffect(() => {
+    if (!isAuthenticated()) return;
+    if (PUBLIC_ROUTES.includes(location.pathname)) return;
+    localStorage.setItem(LAST_VISITED_ROUTE_KEY, location.pathname);
+  }, [location.pathname]);
+
+  // On app boot/reopen: restore last route for logged-in users, otherwise force login route.
+  useEffect(() => {
+    const authed = isAuthenticated();
+    if (!authed) {
+      if (!PUBLIC_ROUTES.includes(location.pathname)) {
+        navigate('/login', { replace: true });
+      }
+      return;
+    }
+
+    const savedRoute = localStorage.getItem(LAST_VISITED_ROUTE_KEY);
+    if (!savedRoute || PUBLIC_ROUTES.includes(savedRoute)) return;
+    if (location.pathname === '/' && savedRoute !== '/') {
+      navigate(savedRoute, { replace: true });
+    }
+  }, []);
 
   // â”€â”€â”€ Notification Tap â†’ Open Notifications Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
@@ -696,11 +738,7 @@ const HospitalTrusteeApp = () => {
             <ProtectedRoute>
               <Home
                 onNavigate={handleNavigate}
-                onLogout={() => {
-                  localStorage.removeItem('isLoggedIn');
-                  localStorage.removeItem('user');
-                  navigate('/login');
-                }}
+                onLogout={clearAuthAndRedirectToLogin}
                 isMember={isMember}
               />
             </ProtectedRoute>
@@ -725,11 +763,7 @@ const HospitalTrusteeApp = () => {
               <HealthcareTrusteeDirectory
                 onNavigate={handleNavigate}
                 onNavigateBack={() => navigate('/')}
-                onLogout={() => {
-                  localStorage.removeItem('isLoggedIn');
-                  localStorage.removeItem('user');
-                  navigate('/login');
-                }}
+                onLogout={clearAuthAndRedirectToLogin}
               />
             </ProtectedRoute>
           }
@@ -741,11 +775,7 @@ const HospitalTrusteeApp = () => {
               <HealthcareTrusteeDirectory
                 onNavigate={handleNavigate}
                 onNavigateBack={() => navigate('/')}
-                onLogout={() => {
-                  localStorage.removeItem('user');
-                  localStorage.removeItem('isLoggedIn');
-                  navigate('/login');
-                }}
+                onLogout={clearAuthAndRedirectToLogin}
               />
             </ProtectedRoute>
           }

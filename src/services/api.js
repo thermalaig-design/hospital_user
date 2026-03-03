@@ -3,10 +3,20 @@ import { getCurrentNotificationContext } from './notificationAudience';
 
 
 // Use /api prefix in both environments (backend routes are mounted under /api/*)
+// In emulator/device testing, localhost points to the device itself.
+// So in dev we derive backend host from current page host unless explicitly overridden.
+const resolveDevApiBaseUrl = () => {
+  if (typeof window === 'undefined') return 'http://localhost:5002/api';
+
+  const protocol = window.location.protocol || 'http:';
+  const hostname = window.location.hostname || 'localhost';
+  return `${protocol}//${hostname}:5002/api`;
+};
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   (import.meta.env.DEV
-    ? 'http://localhost:5002/api'
+    ? resolveDevApiBaseUrl()
     : 'https://mah.contractmitra.in/api');
 
 
