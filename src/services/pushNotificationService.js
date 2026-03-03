@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { api } from './api';
 
@@ -81,6 +82,20 @@ export const initPushNotifications = async () => {
         sessionStorage.setItem('openNotificationId', String(notificationId));
       }
       localStorage.setItem('openNotificationsFromPush', '1');
+      
+      // ✅ NEW: Trigger notification fetch when push is clicked
+      console.log('📬 Push notification clicked - triggering notification fetch');
+      window.dispatchEvent(new CustomEvent('pushNotificationClicked'));
+    });
+
+    // ✅ NEW: Listen for app resume/focus
+    // This ensures notifications are fetched when user opens the app after receiving a push
+    const resumeListener = await App.addListener('appStateChange', (state) => {
+      console.log('📱 App state changed. isActive:', state.isActive);
+      if (state.isActive) {
+        // App is now in foreground - refetch notifications to sync with database
+        window.dispatchEvent(new CustomEvent('appResumed'));
+      }
     });
 
     return () => {
@@ -88,6 +103,7 @@ export const initPushNotifications = async () => {
       registrationError.remove();
       actionListener.remove();
       foregroundListener.remove();
+      resumeListener.remove();
     };
   } catch (error) {
     console.error('Push init skipped due to native/Firebase setup issue:', error?.message || error);

@@ -1,4 +1,5 @@
 const normalizeAudience = (value) => String(value || '').trim().toLowerCase();
+const normalizeIdentity = (value) => String(value || '').trim().toLowerCase();
 
 export const getUserIdVariants = (rawUser) => {
   const variants = new Set();
@@ -15,6 +16,25 @@ export const getUserIdVariants = (rawUser) => {
   }
 
   return [...variants].filter(Boolean);
+};
+
+const getIdentityVariants = (...values) => {
+  const set = new Set();
+  values.forEach((value) => {
+    const base = String(value || '').trim();
+    if (!base) return;
+    set.add(base);
+    set.add(base.toLowerCase());
+
+    const idVariants = getUserIdVariants(base);
+    idVariants.forEach((item) => {
+      const trimmed = String(item || '').trim();
+      if (!trimmed) return;
+      set.add(trimmed);
+      set.add(trimmed.toLowerCase());
+    });
+  });
+  return [...set];
 };
 
 const getMemberTypeVariants = (rawType) => {
@@ -35,12 +55,32 @@ const getMemberTypeVariants = (rawType) => {
 export const getCurrentNotificationContext = () => {
   const userRaw = localStorage.getItem('user');
   const user = userRaw ? JSON.parse(userRaw) : null;
-  const userId = user ? user.Mobile || user.mobile || user.id : null;
-  const userIdVariants = getUserIdVariants(userId);
+  const userId = user
+    ? user.Mobile ||
+      user.mobile ||
+      user.phone ||
+      user['Membership number'] ||
+      user.membership_number ||
+      user.user_identifier ||
+      user.id ||
+      user.Name ||
+      user.name
+    : null;
+  const userIdVariants = getIdentityVariants(
+    user?.Mobile,
+    user?.mobile,
+    user?.phone,
+    user?.['Membership number'],
+    user?.membership_number,
+    user?.user_identifier,
+    user?.id,
+    user?.Name,
+    user?.name
+  );
   const memberTypeVariants = getMemberTypeVariants(user?.type || user?.Type);
   const audienceVariants = [...new Set(['all', 'All', 'both', 'Both', ...memberTypeVariants])];
   const audienceNormalizedSet = new Set(audienceVariants.map(normalizeAudience).filter(Boolean));
-  const userIdSet = new Set(userIdVariants.map((value) => String(value || '').trim()).filter(Boolean));
+  const userIdSet = new Set(userIdVariants.map(normalizeIdentity).filter(Boolean));
 
   return {
     userId,
@@ -54,7 +94,7 @@ export const getCurrentNotificationContext = () => {
 export const matchesNotificationForContext = (notification, context) => {
   if (!notification || !context) return false;
 
-  const notificationUserId = String(notification.user_id || '').trim();
+  const notificationUserId = normalizeIdentity(notification.user_id);
   if (notificationUserId && context.userIdSet.has(notificationUserId)) return true;
 
   const audience = normalizeAudience(notification.target_audience);

@@ -1,22 +1,37 @@
--- SQL to create notifications table in Supabase
--- Run this in your Supabase SQL Editor
+-- Notifications table + realtime setup
+-- Run in Supabase SQL editor
 
-CREATE TABLE IF NOT EXISTS public.notifications (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id TEXT NOT NULL,
-    title TEXT NOT NULL,
-    message TEXT NOT NULL,
-    is_read BOOLEAN DEFAULT FALSE,
-    type TEXT DEFAULT 'general',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+create table if not exists public.notifications (
+  id uuid not null default gen_random_uuid(),
+  user_id text not null,
+  title text not null,
+  message text not null,
+  is_read boolean null default false,
+  type text null default 'general'::text,
+  created_at timestamp with time zone null default now(),
+  target_audience text null,
+  constraint notifications_pkey primary key (id)
+) tablespace pg_default;
 
--- Enable RLS (Optional, for now keeping it simple as per project conventions)
-ALTER TABLE public.notifications DISABLE ROW LEVEL SECURITY;
+create index if not exists notifications_user_id_idx
+  on public.notifications using btree (user_id) tablespace pg_default;
 
--- Enable Realtime
-ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+create index if not exists notifications_created_at_idx
+  on public.notifications using btree (created_at desc) tablespace pg_default;
 
--- Index for performance
-CREATE INDEX IF NOT EXISTS notifications_user_id_idx ON public.notifications(user_id);
-CREATE INDEX IF NOT EXISTS notifications_created_at_idx ON public.notifications(created_at DESC);
+-- Keep same access model as current app code (frontend reads directly).
+alter table public.notifications disable row level security;
+
+-- Ensure table is included in Supabase realtime publication.
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'notifications'
+  ) then
+    alter publication supabase_realtime add table public.notifications;
+  end if;
+end $$;

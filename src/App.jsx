@@ -351,6 +351,44 @@ const HospitalTrusteeApp = () => {
 
         const notificationTracker = new Set();
         const trackerKey = `shownNotifications_${userId}`;
+        const normalizeId = (value) => String(value || '').trim().toLowerCase();
+        const fallbackUserIdSet = new Set();
+        const fallbackUserIdRawSet = new Set();
+
+        const refreshFallbackUserIds = async () => {
+          try {
+            const { data: linkedAppointments } = await supabase
+              .from('appointments')
+              .select('patient_name, membership_number, user_id')
+              .in('patient_phone', userIdVariants)
+              .limit(500);
+
+            fallbackUserIdSet.clear();
+            fallbackUserIdRawSet.clear();
+            (linkedAppointments || []).forEach((row) => {
+              const patientName = String(row?.patient_name || '').trim();
+              const membershipNumber = String(row?.membership_number || '').trim();
+              const appointmentUserId = String(row?.user_id || '').trim();
+
+              if (patientName) {
+                fallbackUserIdRawSet.add(patientName);
+                fallbackUserIdSet.add(normalizeId(patientName));
+              }
+              if (membershipNumber) {
+                fallbackUserIdRawSet.add(membershipNumber);
+                fallbackUserIdSet.add(normalizeId(membershipNumber));
+              }
+              if (appointmentUserId) {
+                fallbackUserIdRawSet.add(appointmentUserId);
+                fallbackUserIdSet.add(normalizeId(appointmentUserId));
+              }
+            });
+          } catch (fallbackErr) {
+            console.warn('[NotifListener] Fallback user-id refresh failed:', fallbackErr?.message || fallbackErr);
+          }
+        };
+
+        await refreshFallbackUserIds();
         const existing = localStorage.getItem(trackerKey);
         if (existing) {
           try {
@@ -421,10 +459,17 @@ const HospitalTrusteeApp = () => {
 
             const fiveSecondsAgo = new Date(Date.now() - 5000).toISOString();
 
+            const notificationUserIds = [
+              ...new Set([
+                ...userIdVariants,
+                ...Array.from(fallbackUserIdRawSet),
+              ]),
+            ];
+
             const { data: userNotifications, error: userNotifError } = await supabase
               .from('notifications')
               .select('*')
-              .in('user_id', userIdVariants)
+              .in('user_id', notificationUserIds)
               .gte('created_at', fiveSecondsAgo)
               .order('created_at', { ascending: false });
 
@@ -466,7 +511,9 @@ const HospitalTrusteeApp = () => {
               { event: 'INSERT', schema: 'public', table: 'notifications' },
               (payload) => {
                 const newNotification = payload.new;
-                const isForThisUser = matchesNotificationForContext(newNotification, notificationContext);
+                const directMatch = matchesNotificationForContext(newNotification, notificationContext);
+                const fallbackMatch = fallbackUserIdSet.has(normalizeId(newNotification?.user_id));
+                const isForThisUser = directMatch || fallbackMatch;
 
                 if (isForThisUser && newNotification.type !== 'birthday') {
                   showPushNotification(newNotification);

@@ -63,11 +63,35 @@ const Notifications = ({ onNavigate }) => {
   useEffect(() => {
     fetchNotifications();
     subscribeToNotifications();
+
+    // ✅ NEW: Add event listeners for notification updates
+    const handlePushNotificationArrived = () => {
+      console.log('📬 Push notification arrived - Notifications page will refetch');
+      fetchNotifications();
+    };
+
+    const handlePushNotificationClicked = () => {
+      console.log('🔔 Push notification clicked - Notifications page refetching');
+      fetchNotifications();
+    };
+
+    const handleAppResumed = () => {
+      console.log('📱 App resumed - Notifications page refetching');
+      fetchNotifications();
+    };
+
+    window.addEventListener('pushNotificationArrived', handlePushNotificationArrived);
+    window.addEventListener('pushNotificationClicked', handlePushNotificationClicked);
+    window.addEventListener('appResumed', handleAppResumed);
+
     return () => {
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
+      window.removeEventListener('pushNotificationArrived', handlePushNotificationArrived);
+      window.removeEventListener('pushNotificationClicked', handlePushNotificationClicked);
+      window.removeEventListener('appResumed', handleAppResumed);
     };
   }, []);
 

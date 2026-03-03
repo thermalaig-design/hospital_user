@@ -1,84 +1,64 @@
 import { supabase } from '../config/supabase.js';
 
-// â”€â”€â”€ Helper: Insert in-app notification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const sendInAppNotification = async ({ user_id, title, message, type = 'appointment_update' }) => {
+// -------------------------------------------------- Helper: Format date for display --------------------------------------------------
+const formatDateDisplay = (dateStr) => {
   try {
-    if (!user_id) {
-      console.log('âš ï¸ No user_id provided for notification');
-      return { success: false, error: 'No user_id provided' };
-    }
-    
-    const cleanUserId = String(user_id).trim();
-    console.log(`ðŸ“¤ Sending notification to Supabase:
-      - user_id: "${cleanUserId}"
-      - title: "${title}"
-      - type: "${type}"
-      - message length: ${message.length}`);
-    
-    const notificationData = {
-      user_id: cleanUserId,
-      title,
-      message,
-      type,
-      is_read: false,
-      created_at: new Date().toISOString(),
-    };
-    
-    const { data, error } = await supabase
-      .from('notifications')
-      .insert([notificationData])
-      .select();
-    
-    if (error) {
-      console.error('âŒ SUPABASE ERROR - Notification insert failed:');
-      console.error('   Error Code:', error.code);
-      console.error('   Error Message:', error.message);
-      console.error('   Error Details:', error.details);
-      console.error('   Error Hint:', error.hint);
-      console.error('   Full Error Object:', JSON.stringify(error, null, 2));
-      return { success: false, error: error.message, details: error.details };
-    }
-    
-    console.log(`âœ… Notification inserted successfully to Supabase!`);
-    console.log('   Notification ID:', data?.[0]?.id);
-    console.log('   Data:', data);
-    return { success: true, data };
-  } catch (err) {
-    console.error('âŒ EXCEPTION in sendInAppNotification:');
-    console.error('   Error Message:', err.message);
-    console.error('   Error Stack:', err.stack);
-    return { success: false, error: err.message, exception: true };
+    const d = new Date(`${dateStr}T00:00:00`);
+    return d.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  } catch {
+    return dateStr;
   }
 };
 
-// â”€â”€â”€ Helper: Format date for display â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const formatDateDisplay = (dateStr) => {
-  try {
-    const d = new Date(dateStr + 'T00:00:00');
-    return d.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  } catch { return dateStr; }
+const formatDoctorDisplayName = (doctorName) => {
+  const cleaned = String(doctorName || '').trim().replace(/^(dr\.?\s*)+/i, '');
+  if (!cleaned) return 'Doctor Not Assigned';
+  return `Dr. ${cleaned}`;
 };
 
 const buildSimpleAppointmentNotification = (status, appointment) => {
   const key = String(status || '').trim().toLowerCase();
   const map = {
-    booked: { emoji: '✅', label: 'Booked' },
-    confirmed: { emoji: '✅', label: 'Confirmed' },
-    cancelled: { emoji: '❌', label: 'Cancelled' },
-    rescheduled: { emoji: '📅', label: 'Rescheduled' },
-    completed: { emoji: '🎉', label: 'Completed' },
-    pending: { emoji: '⏳', label: 'Pending' },
+    booked: { label: 'Booked' },
+    confirmed: { label: 'Confirmed' },
+    cancelled: { label: 'Cancelled' },
+    rescheduled: { label: 'Rescheduled' },
+    completed: { label: 'Completed' },
+    pending: { label: 'Pending' },
   };
-  const meta = map[key] || { emoji: '📋', label: status || 'Updated' };
+
+  const meta = map[key] || { label: status || 'Updated' };
+  const doctorDisplayName = formatDoctorDisplayName(appointment.doctor_name);
+  const appointmentDate = appointment.appointment_date ? formatDateDisplay(appointment.appointment_date) : 'Not specified';
+  const appointmentTime = appointment.appointment_time || 'Not specified';
+  const statusText = appointment.status || meta.label || 'Pending';
+
+  const actionLineMap = {
+    booked: 'Your appointment has been booked successfully.',
+    confirmed: 'Your appointment has been confirmed.',
+    cancelled: 'Your appointment has been cancelled.',
+    rescheduled: 'Your appointment has been rescheduled.',
+    completed: 'Your appointment has been marked as completed.',
+    pending: 'Your appointment is pending confirmation.',
+  };
+
+  const actionLine = actionLineMap[key] || 'Your appointment details have been updated.';
 
   return {
-    title: `${meta.emoji} Appointment ${meta.label}`,
-    message: `${meta.emoji} Appointment ${meta.label}\n👤 ${appointment.patient_name}\n🆔 #${appointment.id}`,
+    title: `Appointment ${meta.label}`,
+    message:
+      `Appointment ${meta.label}\n\n` +
+      `Hello ${appointment.patient_name || 'Patient'},\n` +
+      `${actionLine}\n\n` +
+      `Doctor: ${doctorDisplayName}\n` +
+      `Department: ${appointment.department || 'General'}\n` +
+      `Date: ${appointmentDate}\n` +
+      `Time: ${appointmentTime}\n` +
+      `Appointment ID: #${appointment.id}\n` +
+      `Status: ${statusText}`,
   };
 };
-
-
-const digitsOnly = (value) => String(value || '').replace(/\D/g, '');
+const digitsOnly = (value) => String(value || '').replace(/\\D/g, '');
 
 const buildBookingNotificationRecipients = ({ patient_phone, user_id, patient_name, booking_for }) => {
   const recipients = new Set();
@@ -517,7 +497,7 @@ export const updateAppointment = async (req, res, next) => {
     // Fetch old appointment before updating to detect changes
     const { data: oldAppointment } = await supabase
       .from('appointments')
-      .select('appointment_date, appointment_time, remark, patient_name, patient_phone, doctor_name, department')
+      .select('appointment_date, appointment_time, remark, patient_name, patient_phone, doctor_name, department, status')
       .eq('id', id)
       .single();
 
@@ -536,29 +516,38 @@ export const updateAppointment = async (req, res, next) => {
       const timeChanged = appointment_time && appointment_time !== oldAppointment.appointment_time;
       const remarkChanged = remark !== null && remark !== undefined && remark !== oldAppointment.remark;
 
-      if (remarkChanged) {
-        console.log(`ðŸ“ Remark changed detected - old: "${oldAppointment.remark}" new: "${remark}"`);
+            if (remarkChanged) {
+        console.log(`?? Remark changed detected - old: "${oldAppointment.remark}" new: "${remark}"`);
+        const doctorDisplayName = formatDoctorDisplayName(appointment.doctor_name);
         
         const remarkNotifResult = await sendInAppNotification({
           user_id: appointment.patient_phone,
-          title: 'ðŸ’¬ à¤†à¤ªà¤•à¥€ Appointment à¤ªà¤° Doctor à¤•à¤¾ Message',
+          title: '? Appointment Booked',
           message:
-            `ðŸ’¬ Aapki Appointment par Naya Message ðŸ“
+            `? Appointment Booked
 
-ðŸ‘¤ Patient: ${appointment.patient_name}
-ðŸ‘¨â€âš•ï¸ Doctor: ${appointment.doctor_name}
-ðŸ“… Date: ${formatDateDisplay(appointment.appointment_date)}
-â° Time: ${appointment.appointment_time || 'Not specified'}
+Hello ${appointment.patient_name || 'Patient'},
+Your appointment is successfully booked and updated by admin.
 
-ðŸ“ Doctor's Message:
-"${remark}"
-
-ðŸ†” Appointment ID: #${appointment.id}
+Doctor: ${doctorDisplayName}
+Department: ${appointment.department || 'General'}
+Date: ${formatDateDisplay(appointment.appointment_date)}
+Time: ${appointment.appointment_time || 'Not specified'}
+Appointment ID: #${appointment.id}
 Status: ${appointment.status || 'Pending'}
 
-à¤•à¥ƒà¤ªà¤¯à¤¾ à¤¸à¤®à¤¯ à¤ªà¤° hospital à¤ªà¤¹à¥à¤‚à¤šà¥‡à¤‚à¥¤ à¤§à¤¨à¥à¤¯à¤µà¤¾à¤¦!`,
+Doctor Note:
+"${remark}"
+Please arrive at the hospital on time.`,
           type: 'appointment_update',
         });
+        
+        if (remarkNotifResult.success) {
+          console.log(`? Remark notification created successfully`);
+        } else {
+          console.error(`? Remark notification FAILED:`, remarkNotifResult.error);
+        }
+      });
         
         if (remarkNotifResult.success) {
           console.log(`âœ… Remark notification created successfully`);

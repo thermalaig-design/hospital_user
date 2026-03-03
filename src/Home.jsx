@@ -6,12 +6,15 @@ import ImageSlider from './components/ImageSlider';
 import { getProfile, getMarqueeUpdates, getSponsors, getUserNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification } from './services/api';
 import { fetchLatestGalleryImages } from './services/galleryService';
 import { registerSidebarState } from './hooks';
+import { supabase } from './services/supabaseClient';
+import { getCurrentNotificationContext, matchesNotificationForContext } from './services/notificationAudience';
 
 
 /* eslint-disable react-refresh/only-export-components */
 const Home = ({ onNavigate, onLogout, isMember }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const mainContainerRef = useRef(null);
+  const channelRef = useRef(null);
   const [userProfile, setUserProfile] = useState(null);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -223,12 +226,23 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
     const fetchNotifications = async () => {
       try {
         const response = await getUserNotifications();
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const userId = user.Mobile || user.mobile || user.phone || user['Membership number'];
+
+        console.log('🔔 Notification Fetch Debug:');
+        console.log('  📱 Current User ID:', userId);
+        console.log('  📡 API Response:', response);
+        console.log('  📊 Found:', response.data?.length || 0, 'notifications');
+
         if (response.success) {
           setNotifications(response.data || []);
           setUnreadCount((response.data || []).filter(n => !n.is_read).length);
+          console.log('✅ Unread count:', (response.data || []).filter(n => !n.is_read).length);
+        } else {
+          console.warn('⚠️  API returned success=false:', response.message);
         }
       } catch (error) {
-        console.error('Error fetching notifications:', error);
+        console.error('❌ Error fetching notifications:', error);
       }
     };
 
@@ -248,16 +262,94 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
     };
     window.addEventListener('pushNotificationArrived', handlePushNotificationArrived);
 
+    // ✅ NEW: Re-fetch when push notification is clicked (app comes to foreground)
+    const handlePushNotificationClicked = () => {
+      console.log('🔔 Push notification clicked — refetching notifications...');
+      fetchNotifications();
+    };
+    window.addEventListener('pushNotificationClicked', handlePushNotificationClicked);
+
+    // ✅ NEW: Re-fetch when app resumes from background
+    const handleAppResumed = () => {
+      console.log('📱 App resumed — refetching notifications...');
+      fetchNotifications();
+    };
+    window.addEventListener('appResumed', handleAppResumed);
+
     // Fallback: also re-fetch once at 5s to catch anything missed
     const delayed = setTimeout(fetchNotifications, 5000);
 
-    // Poll for new notifications every 30 seconds
-    const interval = setInterval(fetchNotifications, 30000);
+    // Poll for new notifications every 15 seconds (reduced from 30s) for faster updates
+    const interval = setInterval(fetchNotifications, 15000);
     return () => {
       clearInterval(interval);
       clearTimeout(delayed);
       window.removeEventListener('birthdayNotifInserted', handleBirthdayInserted);
       window.removeEventListener('pushNotificationArrived', handlePushNotificationArrived);
+      window.removeEventListener('pushNotificationClicked', handlePushNotificationClicked);
+      window.removeEventListener('appResumed', handleAppResumed);
+    };
+  }, []);
+
+  // Subscribe to real-time notifications (like in Notifications.jsx)
+  useEffect(() => {
+    const subscribeToNotifications = () => {
+      const notificationContext = getCurrentNotificationContext();
+      if (!notificationContext.userId) {
+        console.log('⚠️ No user ID found, skipping real-time subscription');
+        return;
+      }
+
+      const channel = supabase
+        .channel('notifications-realtime-home')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'notifications' },
+          (payload) => {
+            const newNotif = payload.new;
+            const isForMe = matchesNotificationForContext(newNotif, notificationContext);
+            if (isForMe) {
+              console.log('✅ Real-time notification received on Home:', newNotif.title);
+              setNotifications((prev) => {
+                // Duplicate avoid karo
+                if (prev.some(n => n.id === newNotif.id)) return prev;
+                return [newNotif, ...prev];
+              });
+              setUnreadCount((prev) => prev + 1);
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'notifications' },
+          (payload) => {
+            const updatedNotif = payload.new;
+            const isForMe = matchesNotificationForContext(updatedNotif, notificationContext);
+            if (isForMe) {
+              setNotifications((prev) =>
+                prev.map((n) => (n.id === updatedNotif.id ? updatedNotif : n))
+              );
+              // Unread count update — agar read hua to minus karo
+              if (payload.old?.is_read === false && updatedNotif.is_read === true) {
+                setUnreadCount((prev) => Math.max(0, prev - 1));
+              }
+            }
+          }
+        )
+        .subscribe();
+
+      channelRef.current = channel;
+      console.log('✅ Real-time subscription established for Home notifications');
+    };
+
+    subscribeToNotifications();
+
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+        console.log('🔌 Real-time subscription removed from Home');
+      }
     };
   }, []);
 

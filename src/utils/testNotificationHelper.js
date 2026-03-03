@@ -59,6 +59,71 @@ export const getCurrentUserId = () => {
 };
 
 /**
+ * Add test notifications to database for current user
+ */
+export const addTestNotificationsForCurrentUser = async () => {
+  try {
+    console.log('📝 Adding test notifications for current user...');
+    const userId = getCurrentUserId();
+    
+    if (!userId) {
+      console.error('❌ Cannot find user ID. Make sure you are logged in!');
+      return;
+    }
+
+    const { supabase } = await import('../services/supabaseClient.js');
+    
+    console.log('📱 User ID:', userId);
+
+    const testNotifications = [
+      {
+        user_id: userId,
+        title: '✅ Appointment Confirmed',
+        message: 'Your appointment with Dr. Sharma on March 5, 2026 is confirmed. Please arrive 10 minutes early.',
+        type: 'appointment',
+        is_read: false
+      },
+      {
+        user_id: userId,
+        title: '📋 Test Report Available',
+        message: 'Your COVID-19 test report is ready. Tap to view and download your report.',
+        type: 'report',
+        is_read: false
+      },
+      {
+        user_id: userId,
+        title: '🏥 Free Health Camp',
+        message: 'Free Cardiac Checkup Camp on March 29, 2026. Limited seats available. Register now!',
+        type: 'general',
+        is_read: false
+      }
+    ];
+
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert(testNotifications)
+      .select();
+
+    if (error) {
+      console.error('❌ Error adding notifications:', error.message);
+      return;
+    }
+
+    console.log('✅ Successfully added', data?.length || 0, 'test notifications!');
+    console.log('📍 Refresh the page to see them in the bell icon');
+    
+    data?.forEach((n, i) => {
+      console.log(`  ${i + 1}. ${n.title}`);
+    });
+    
+    return { success: true, count: data?.length || 0 };
+  } catch (error) {
+    console.error('❌ Error:', error.message);
+    return { success: false, message: error.message };
+  }
+};
+
+/**
  * Quick test - Send test notification for current user
  */
 export const quickTestNotification = async () => {
@@ -90,22 +155,29 @@ export const setupDebugFunctions = () => {
     // Global function for quick test
     window.quickTest = quickTestNotification;
     
+    // Global function to add test notifications to database
+    window.addNotificationsForCurrentUser = addTestNotificationsForCurrentUser;
+    
     // Debug info
     window.notificationDebug = {
       userId: getCurrentUserId(),
       help: `
 🧪 Notification Debug Commands:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. Test Current User:
+1. Add test notifications to database for current user:
+   window.addNotificationsForCurrentUser()
+   Then refresh the page to see them in the bell icon
+
+2. Test Current User (push notification):
    window.quickTest()
 
-2. Test Specific User:
+3. Test Specific User:
    window.testNotification('9876543210')
 
-3. Check Current User ID:
+4. Check Current User ID:
    window.notificationDebug.userId
 
-4. Check Notification Tracker:
+5. Check Notification Tracker:
    JSON.parse(localStorage.getItem('shownNotifications_YOUR_PHONE'))
 
 💡 After running the command, check your phone/emulator within 5 seconds!

@@ -2,10 +2,12 @@ import axios from 'axios';
 import { getCurrentNotificationContext } from './notificationAudience';
 
 
-// Use local backend for development, live backend for production
-const API_BASE_URL = import.meta.env.DEV
-  ? 'http://localhost:5002'
-  : 'https://mah.contractmitra.in/api';
+// Use /api prefix in both environments (backend routes are mounted under /api/*)
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV
+    ? 'http://localhost:5002/api'
+    : 'https://mah.contractmitra.in/api');
 
 
 // Create axios instance
@@ -332,10 +334,49 @@ export const getUserNotifications = async () => {
       throw new Error('No user found in localStorage');
     }
 
+    // Fallback mapping:
+    // Notifications can be stored with user_id = patient_phone, patient_name, membership_number, or user_id.
+    // We query appointments by patient_phone variants to find all possible user_ids used in notifications.
+    const { data: linkedAppointments } = await supabase
+      .from('appointments')
+      .select('patient_name, membership_number, user_id, patient_phone')
+      .in('patient_phone', userIdVariants)
+      .limit(500);
+
+    const fallbackUserIds = new Set();
+    (linkedAppointments || []).forEach((row) => {
+      const patientName = String(row?.patient_name || '').trim();
+      const membershipNumber = String(row?.membership_number || '').trim();
+      const appointmentUserId = String(row?.user_id || '').trim();
+      // ✅ patient_phone explicitly — this is what the Supabase trigger stores as user_id
+      const patientPhone = String(row?.patient_phone || '').trim();
+
+      if (patientName) fallbackUserIds.add(patientName);
+      if (membershipNumber) fallbackUserIds.add(membershipNumber);
+      if (appointmentUserId) fallbackUserIds.add(appointmentUserId);
+
+      // Add patient_phone and its variants (e.g. 9911334455, 919911334455, +919911334455)
+      if (patientPhone) {
+        fallbackUserIds.add(patientPhone);
+        const digitsOnly = patientPhone.replace(/\D/g, '');
+        if (digitsOnly) {
+          fallbackUserIds.add(digitsOnly);
+          if (digitsOnly.length >= 10) fallbackUserIds.add(digitsOnly.slice(-10));
+          if (!digitsOnly.startsWith('91') && digitsOnly.length === 10) {
+            fallbackUserIds.add(`91${digitsOnly}`);
+          }
+          if (digitsOnly.length === 10) fallbackUserIds.add(`+91${digitsOnly}`);
+          fallbackUserIds.add(`+${digitsOnly}`);
+        }
+      }
+    });
+
+    const notificationUserIds = [...new Set([...userIdVariants, ...fallbackUserIds])];
+
     const { data: userNotifications, error: userNotifError } = await supabase
       .from('notifications')
       .select('*')
-      .in('user_id', userIdVariants)
+      .in('user_id', notificationUserIds)
       .order('created_at', { ascending: false });
 
     if (userNotifError) throw userNotifError;
@@ -386,11 +427,46 @@ export const markAllNotificationsAsRead = async () => {
       throw new Error('No user found in localStorage');
     }
 
+    const { data: linkedAppointments } = await supabase
+      .from('appointments')
+      .select('patient_name, membership_number, user_id, patient_phone')
+      .in('patient_phone', userIdVariants)
+      .limit(500);
+
+    const fallbackUserIds = new Set();
+    (linkedAppointments || []).forEach((row) => {
+      const patientName = String(row?.patient_name || '').trim();
+      const membershipNumber = String(row?.membership_number || '').trim();
+      const appointmentUserId = String(row?.user_id || '').trim();
+      const patientPhone = String(row?.patient_phone || '').trim();
+
+      if (patientName) fallbackUserIds.add(patientName);
+      if (membershipNumber) fallbackUserIds.add(membershipNumber);
+      if (appointmentUserId) fallbackUserIds.add(appointmentUserId);
+
+      // ✅ patient_phone variants — matches notifications stored by trigger using patient_phone
+      if (patientPhone) {
+        fallbackUserIds.add(patientPhone);
+        const digitsOnly = patientPhone.replace(/\D/g, '');
+        if (digitsOnly) {
+          fallbackUserIds.add(digitsOnly);
+          if (digitsOnly.length >= 10) fallbackUserIds.add(digitsOnly.slice(-10));
+          if (!digitsOnly.startsWith('91') && digitsOnly.length === 10) {
+            fallbackUserIds.add(`91${digitsOnly}`);
+          }
+          if (digitsOnly.length === 10) fallbackUserIds.add(`+91${digitsOnly}`);
+          fallbackUserIds.add(`+${digitsOnly}`);
+        }
+      }
+    });
+
+    const notificationUserIds = [...new Set([...userIdVariants, ...fallbackUserIds])];
+
     const { error: userError } = await supabase
       .from('notifications')
       .update({ is_read: true })
       .eq('is_read', false)
-      .in('user_id', userIdVariants);
+      .in('user_id', notificationUserIds);
 
     if (userError) throw userError;
 
