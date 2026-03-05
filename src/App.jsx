@@ -85,15 +85,23 @@ const HospitalTrusteeApp = () => {
     const authed = isAuthenticated();
     if (!authed) {
       if (!PUBLIC_ROUTES.includes(location.pathname)) {
+        console.log('🔐 Not authenticated, redirecting to login');
         navigate('/login', { replace: true });
       }
       return;
     }
 
     const savedRoute = localStorage.getItem(LAST_VISITED_ROUTE_KEY);
-    if (!savedRoute || PUBLIC_ROUTES.includes(savedRoute)) return;
-    if (location.pathname === '/' && savedRoute !== '/') {
-      navigate(savedRoute, { replace: true });
+    console.log('📍 App mounted - Current path:', location.pathname, 'Saved route:', savedRoute);
+    
+    // Restoration is now handled in main.jsx, but this is a safety check
+    // If somehow we're at home but we have a saved different route, navigate there
+    if (location.pathname === '/' && savedRoute && !PUBLIC_ROUTES.includes(savedRoute) && savedRoute !== '/') {
+      console.log('⬅️ Restoring saved route:', savedRoute);
+      // Use setTimeout to avoid navigation conflicts
+      setTimeout(() => {
+        navigate(savedRoute, { replace: true });
+      }, 100);
     }
   }, []);
 

@@ -5,6 +5,25 @@ import { supabase } from './services/supabaseClient';
 import { getCurrentNotificationContext, matchesNotificationForContext } from './services/notificationAudience';
 import Sidebar from './components/Sidebar';
 
+const buildNotificationContentKey = (notification) => {
+  const title = String(notification?.title || '').trim().toLowerCase();
+  const message = String(notification?.message || notification?.body || '').trim().toLowerCase();
+  const type = String(notification?.type || '').trim().toLowerCase();
+  const createdAt = String(notification?.created_at || '').trim();
+  const createdAtSecond = createdAt ? createdAt.slice(0, 19) : '';
+  return `${type}|${title}|${message}|${createdAtSecond}`;
+};
+
+const dedupeNotificationsByContent = (notifications) => {
+  const seen = new Set();
+  return notifications.filter((notification) => {
+    const key = buildNotificationContentKey(notification);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 const Notifications = ({ onNavigate }) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -108,7 +127,7 @@ const Notifications = ({ onNavigate }) => {
           const newNotif = payload.new;
           const isForMe = matchesNotificationForContext(newNotif, notificationContext);
           if (isForMe) {
-            setNotifications((prev) => [newNotif, ...prev]);
+            setNotifications((prev) => dedupeNotificationsByContent([newNotif, ...prev]));
           }
         }
       )
@@ -408,42 +427,87 @@ const Notifications = ({ onNavigate }) => {
       )}
 
       {/* Detailed Notification Modal */}
-      {showDetailModal && selectedNotification && (
-        <div className="fixed inset-0 z-[999] bg-black/60 flex items-end sm:items-center justify-center" onClick={closeDetailModal}>
-          <div
-            className="bg-white rounded-t-3xl sm:rounded-2xl w-full sm:max-w-md max-h-[80vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h3 className="text-base font-bold text-gray-900">Notification</h3>
-              <button onClick={closeDetailModal} className="p-1 rounded-full hover:bg-gray-100">
-                <X className="h-5 w-5 text-gray-500" />
-              </button>
-            </div>
+      {showDetailModal && selectedNotification && (() => {
+        const doctorName = extractDoctorName(selectedNotification.message);
+        const department = extractDepartment(selectedNotification.message);
+        const dateTime = extractDateTime(selectedNotification.message);
+        const patientName = extractPatientName(selectedNotification.message);
 
-            {/* Scrollable body */}
-            <div className="overflow-y-auto flex-1 px-6 py-5 space-y-3">
-              <p className="text-sm font-semibold text-indigo-700">{selectedNotification.title}</p>
-              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{selectedNotification.message}</p>
-              <p className="text-xs text-gray-400 pt-1">
-                {new Date(selectedNotification.created_at).toLocaleDateString()} at{' '}
-                {new Date(selectedNotification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </p>
-            </div>
+        return (
+          <div className="fixed inset-0 z-[999] bg-black/60 flex items-end sm:items-center justify-center" onClick={closeDetailModal}>
+            <div
+              className="bg-white rounded-t-3xl sm:rounded-2xl w-full sm:max-w-md max-h-[80vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <h3 className="text-base font-bold text-gray-900">Notification Details</h3>
+                <button onClick={closeDetailModal} className="p-1 rounded-full hover:bg-gray-100">
+                  <X className="h-5 w-5 text-gray-500" />
+                </button>
+              </div>
 
-            {/* Footer */}
-            <div className="px-6 py-4 border-t border-gray-100">
-              <button
-                onClick={closeDetailModal}
-                className="w-full py-2.5 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 transition-colors"
-              >
-                Close
-              </button>
+              {/* Scrollable body */}
+              <div className="overflow-y-auto flex-1 px-6 py-5 space-y-4">
+                {/* Title */}
+                <p className="text-sm font-semibold text-indigo-700">{selectedNotification.title}</p>
+
+                {/* Patient Name */}
+                {patientName && (
+                  <div className="bg-indigo-50 rounded-lg p-3">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Patient</p>
+                    <p className="text-sm font-semibold text-gray-900">{patientName}</p>
+                  </div>
+                )}
+
+                {/* Doctor Details Card */}
+                {(doctorName || department) && (
+                  <div className="bg-blue-50 rounded-lg p-3 border-l-4 border-blue-500">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Doctor</p>
+                    {doctorName && (
+                      <p className="text-sm font-semibold text-blue-900 mb-1">👨‍⚕️ {doctorName}</p>
+                    )}
+                    {department && !department.includes('Not specified') && (
+                      <p className="text-xs text-blue-700">🏥 {department}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Date & Time Card */}
+                {dateTime && !dateTime.includes('Not specified') && (
+                  <div className="bg-green-50 rounded-lg p-3 border-l-4 border-green-500">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Appointment</p>
+                    <p className="text-sm font-semibold text-green-900">📅 {dateTime}</p>
+                  </div>
+                )}
+
+                {/* Full Message (for reference) */}
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Details</p>
+                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line text-justify">{selectedNotification.message}</p>
+                </div>
+
+                {/* Timestamp */}
+                <p className="text-xs text-gray-400 text-center pt-2">
+                  {new Date(selectedNotification.created_at).toLocaleDateString()} at{' '}
+                  {new Date(selectedNotification.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-4 border-t border-gray-100">
+                <button
+                  onClick={closeDetailModal}
+                  className="w-full py-2.5 bg-indigo-600 text-white rounded-xl font-semibold text-sm hover:bg-indigo-700 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
+
     </div>
   );
 };
@@ -462,9 +526,16 @@ const extractPatientName = (message) => {
 };
 
 const extractDoctorName = (message) => {
+  // Pattern: Doctor: Dr. [Name]
+  const doctorMatch = message.match(/Doctor:\s*(?:Dr\.\s*)?([^\n]+)/i);
+  if (doctorMatch) {
+    const name = doctorMatch[1].trim();
+    return name.startsWith('Dr.') ? name : `Dr. ${name}`;
+  }
+
   // Pattern: 👨‍⚕️ Doctor: Dr. [Name] or 👨‍⚕️ Referred To: Dr. [Name]
-  const doctorMatch = message.match(/👨‍⚕️\s+(?:Doctor|Referred To):\s*Dr\.\s*([^\n]+)/i);
-  if (doctorMatch) return 'Dr. ' + doctorMatch[1].trim();
+  const emojiMatch = message.match(/👨‍⚕️\s+(?:Doctor|Referred To):\s*Dr\.\s*([^\n]+)/i);
+  if (emojiMatch) return 'Dr. ' + emojiMatch[1].trim();
 
   // Pattern: with Dr. [Name]
   const withMatch = message.match(/with\s+Dr\.\s*([^\s]+(?:\s+[^\s]+)*)/i);
@@ -492,6 +563,20 @@ const formatDate = (dateStr) => {
 };
 
 const extractDateTime = (message) => {
+  // Pattern: Date: [formatted date] and Time: [time]
+  const plainDateMatch = message.match(/Date:\s*([^\n]+)/i);
+  const plainTimeMatch = message.match(/Time:\s*([^\n]+)/i);
+
+  if (plainDateMatch && plainTimeMatch) {
+    const dateStr = plainDateMatch[1].trim();
+    const timeStr = plainTimeMatch[1].trim();
+    // If dateStr looks like a formatted date, return as-is; otherwise try to format
+    return `${dateStr} at ${timeStr}`;
+  } else if (plainDateMatch) {
+    const dateStr = plainDateMatch[1].trim();
+    return dateStr;
+  }
+
   // Pattern: 📅 Previous Date & Time: [date] [time]
   // Pattern: ➡️ New Date & Time: [date] [time]
   const previousMatch = message.match(/📅\s*Previous\s+Date\s+&\s+Time:\s*([^\n]+)/i);
@@ -523,9 +608,14 @@ const extractDateTime = (message) => {
 };
 
 const extractDepartment = (message) => {
-  // Pattern: 🏥 Department: [Department]
-  const match = message.match(/🏥\s*Department:\s*([^\n]+)/i);
+  // Pattern: Department: [Department]
+  const match = message.match(/Department:\s*([^\n]+)/i);
   if (match) return match[1].trim();
+  
+  // Pattern: 🏥 Department: [Department]
+  const emojiMatch = message.match(/🏥\s*Department:\s*([^\n]+)/i);
+  if (emojiMatch) return emojiMatch[1].trim();
+  
   return null;
 };
 

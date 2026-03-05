@@ -139,6 +139,7 @@ export const bookAppointment = async (req, res, next) => {
       doctor_name,
       department,
       appointment_date,
+      appointment_time,
       appointment_type,
       reason,
       medical_history,
@@ -151,10 +152,19 @@ export const bookAppointment = async (req, res, next) => {
 
     // Validate required fields
     if (!patient_name || !patient_phone || !doctor_id || !doctor_name ||
-      !appointment_date || !reason) {
+      !appointment_date || !appointment_time || !reason) {
+      console.warn('Validation failed. Received:', {
+        patient_name: patient_name ? 'YES' : 'NO',
+        patient_phone: patient_phone ? 'YES' : 'NO',
+        doctor_id: doctor_id ? 'YES' : 'NO',
+        doctor_name: doctor_name ? `YES (${doctor_name})` : 'NO - EMPTY!',
+        appointment_date: appointment_date ? 'YES' : 'NO',
+        appointment_time: appointment_time ? 'YES' : 'NO',
+        reason: reason ? 'YES' : 'NO'
+      });
       return res.status(400).json({
         success: false,
-        message: 'Please provide all required fields'
+        message: 'Please provide all required fields (including appointment time)'
       });
     }
 
@@ -179,7 +189,7 @@ export const bookAppointment = async (req, res, next) => {
           doctor_name,
           department: department || null,
           appointment_date,
-          appointment_time: req.body.appointment_time || null,  // Add appointment time if provided
+          appointment_time: appointment_time || null,
           appointment_type: appointment_type || 'General Consultation',
           reason,
           medical_history: medical_history || null,
@@ -200,15 +210,21 @@ export const bookAppointment = async (req, res, next) => {
       throw error;
     }
 
-    console.log('âœ… Appointment created successfully:', appointment.id);
+    console.log('Appointment created with ID:', appointment.id);
+    console.log('Notification will use doctor_name:', appointment.doctor_name || doctor_name);
 
-    // âŒ Email removed - Only create notification in Supabase
-    console.log('ðŸ“ Creating notification in Supabase...');
-
-    // Send in-app notification â€” booking confirmation (compact format)
+    // Send in-app notification – booking confirmation (compact format)
+    const notificationDoctor = String(appointment.doctor_name || doctor_name || 'Unknown').trim();
+    const notificationDept = String(appointment.department || department || 'General').trim();
+    
     const bookingNotif = buildSimpleAppointmentNotification('booked', {
       id: appointment.id,
-      patient_name,
+      patient_name: appointment.patient_name || patient_name,
+      doctor_name: notificationDoctor,
+      department: notificationDept,
+      appointment_date: appointment.appointment_date || appointment_date,
+      appointment_time: appointment.appointment_time || appointment_time || null,
+      status: 'Booked',
     });
 
         const recipientIds = buildBookingNotificationRecipients({
@@ -823,4 +839,3 @@ export const getAvailableSlots = async (req, res, next) => {
 }; // End of getAvailableSlots function
 
 // Approve and reject functions removed as per requirement
-

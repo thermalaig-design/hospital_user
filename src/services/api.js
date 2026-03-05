@@ -1,6 +1,15 @@
 import axios from 'axios';
 import { getCurrentNotificationContext } from './notificationAudience';
 
+const buildNotificationContentKey = (notification) => {
+  const title = String(notification?.title || '').trim().toLowerCase();
+  const message = String(notification?.message || notification?.body || '').trim().toLowerCase();
+  const type = String(notification?.type || '').trim().toLowerCase();
+  const createdAt = String(notification?.created_at || '').trim();
+  const createdAtSecond = createdAt ? createdAt.slice(0, 19) : '';
+  return `${type}|${title}|${message}|${createdAtSecond}`;
+};
+
 
 // Use /api prefix in both environments (backend routes are mounted under /api/*)
 // In emulator/device testing, localhost points to the device itself.
@@ -400,10 +409,19 @@ export const getUserNotifications = async () => {
     if (audienceError) throw audienceError;
 
     const merged = [...(userNotifications || []), ...(audienceNotifications || [])];
-    const unique = [...new Map(merged.map((item) => [item.id, item])).values()];
-    unique.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const uniqueById = [...new Map(merged.map((item) => [item.id, item])).values()];
+    uniqueById.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-    return { success: true, data: unique };
+    const seenContent = new Set();
+    const deduped = [];
+    for (const notification of uniqueById) {
+      const key = buildNotificationContentKey(notification);
+      if (seenContent.has(key)) continue;
+      seenContent.add(key);
+      deduped.push(notification);
+    }
+
+    return { success: true, data: deduped };
   } catch (error) {
     console.error('Error fetching notifications:', error);
     return { success: false, message: error.message, data: [] };

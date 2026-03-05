@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { User, Users, Clock, FileText, UserPlus, Bell, ChevronRight, LogOut, Heart, Shield, Plus, ArrowRight, Pill, ShoppingCart, Calendar, Stethoscope, Building2, Phone, QrCode, Monitor, Brain, Package, FileCheck, Search, Filter, MapPin, Star, HelpCircle, BookOpen, Video, Headphones, Menu, X, Home as HomeIcon, Settings, Eye, Edit2, Info, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { createReferral, getUserReferrals, getReferralCounts, updateReferral, deleteReferral } from './services/api';
 import { supabase } from './services/supabaseClient';
+import { registerSidebarState, useAndroidBack } from './hooks';
 
 import Sidebar from './components/Sidebar';
 
@@ -17,6 +18,25 @@ const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, s
   const [counts, setCounts] = useState({ generalCount: 0, ewsCount: 0, total: 0 });
   const [selectedReferral, setSelectedReferral] = useState(null);
   const [editingReferral, setEditingReferral] = useState(null);
+  const { registerBackHandler } = useAndroidBack();
+
+  const resetNewReferralForm = useCallback(() => {
+    setNewReference({
+      patientName: '',
+      age: '',
+      gender: '',
+      phone: '',
+      referredTo: '',
+      doctorId: null,
+      doctorName: '',
+      doctorDepartment: '',
+      condition: '',
+      category: '',
+      notes: ''
+    });
+    setDoctorSearchTerm('');
+    setShowDoctorDropdown(false);
+  }, [setNewReference]);
 
   // Scroll locking when sidebar is open
   useEffect(() => {
@@ -48,6 +68,54 @@ const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, s
       document.body.style.pointerEvents = 'auto';
     };
   }, [isMenuOpen]);
+
+  // Register sidebar state so Android back closes sidebar first.
+  useEffect(() => {
+    registerSidebarState(isMenuOpen, () => setIsMenuOpen(false));
+  }, [isMenuOpen]);
+
+  // Handle Android hardware back for Referral internal views before route-level back.
+  useEffect(() => {
+    const shouldInterceptBack = isMenuOpen || showDoctorDropdown || !!editingReferral || !!selectedReferral || referenceView === 'addNew' || referenceView === 'history';
+    if (!shouldInterceptBack) return undefined;
+
+    const unregister = registerBackHandler(() => {
+      if (isMenuOpen) {
+        setIsMenuOpen(false);
+        return;
+      }
+
+      if (showDoctorDropdown) {
+        setShowDoctorDropdown(false);
+        return;
+      }
+
+      if (editingReferral) {
+        setEditingReferral(null);
+        if (selectedReferral) setSelectedReferral(null);
+        return;
+      }
+
+      if (selectedReferral) {
+        setSelectedReferral(null);
+        return;
+      }
+
+      if (referenceView === 'addNew') {
+        resetNewReferralForm();
+        setReferenceView('menu');
+        return;
+      }
+
+      if (referenceView === 'history') {
+        setReferenceView('menu');
+      }
+    });
+
+    return () => {
+      unregister?.();
+    };
+  }, [isMenuOpen, showDoctorDropdown, editingReferral, selectedReferral, referenceView, resetNewReferralForm, setReferenceView]);
 
   // Close sidebar when clicking outside
   useEffect(() => {
@@ -539,21 +607,7 @@ const Referral = ({ onNavigate, referenceView, setReferenceView, newReference, s
         <div className="px-6 py-4">
           <button
             onClick={() => {
-              setNewReference({
-                patientName: '',
-                age: '',
-                gender: '',
-                phone: '',
-                referredTo: '',
-                doctorId: null,
-                doctorName: '',
-                doctorDepartment: '',
-                condition: '',
-                category: '',
-                notes: ''
-              });
-              setDoctorSearchTerm('');
-              setShowDoctorDropdown(false);
+              resetNewReferralForm();
               setReferenceView('menu');
             }}
             className="flex items-center gap-2 text-indigo-600 font-bold text-sm mb-6 hover:underline"

@@ -79,18 +79,21 @@ export const NavigationProvider = ({ children }) => {
 
   const locationRef = useRef(location);
   const stackRef = useRef(navigationStack);
+  const callbacksRef = useRef({});
 
   // Sync refs with state
   useEffect(() => {
     locationRef.current = location;
   }, [location]);
 
-  // NOTE: lastVisitedPath restore removed — it was causing forced navigation
-  // to /appointment from every other page on mount/remount.
-
   useEffect(() => {
     stackRef.current = navigationStack;
   }, [navigationStack]);
+
+  // ✅ IMPORTANT: Keep callbacksRef in sync with state
+  useEffect(() => {
+    callbacksRef.current = backCallbacks;
+  }, [backCallbacks]);
 
   // ── Stack Management ──────────────────────────────────────
 
@@ -134,7 +137,7 @@ export const NavigationProvider = ({ children }) => {
       }
       return false;
     },
-    [backCallbacks]
+    []
   );
 
   // ── Helpers ───────────────────────────────────────────────
@@ -148,18 +151,21 @@ export const NavigationProvider = ({ children }) => {
   }, []);
 
   const getPreviousRoute = useCallback(() => {
-    if (navigationStack.length < 2) return null;
-    return navigationStack[navigationStack.length - 2];
-  }, [navigationStack]);
+    if (stackRef.current.length < 2) return null;
+    return stackRef.current[stackRef.current.length - 2];
+  }, []);
 
   const getCurrentRoute = useCallback(() => {
-    return navigationStack[navigationStack.length - 1] || '/';
-  }, [navigationStack]);
+    return stackRef.current[stackRef.current.length - 1] || '/';
+  }, []);
 
   const canGoBack = navigationStack.length > 1;
 
   // ── Android Back Button Listener ──────────────────────────
   useEffect(() => {
+    // Store navigate in a ref to avoid dependency issues
+    const navigateRef = { current: navigate };
+
     const subscriptionPromise = App.addListener('backButton', async () => {
       const currentPath = locationRef.current.pathname;
       const currentStack = stackRef.current;
@@ -167,6 +173,7 @@ export const NavigationProvider = ({ children }) => {
       console.log('📱 Back button pressed!');
       console.log('   Current Path:', currentPath);
       console.log('   Stack:', currentStack);
+      console.log('   Callbacks available:', Object.keys(callbacksRef.current));
       console.log('   Parent Route:', ROUTE_HIERARCHY[currentPath]?.parent);
 
       // 1. Sidebar open? Close it first
@@ -177,7 +184,7 @@ export const NavigationProvider = ({ children }) => {
       }
 
       // 2. Custom callback for this route?
-      const callback = backCallbacks[currentPath];
+      const callback = callbacksRef.current[currentPath];
       if (callback && typeof callback === 'function') {
         console.log('✅ Executing custom callback for:', currentPath);
         callback();
@@ -185,10 +192,10 @@ export const NavigationProvider = ({ children }) => {
       }
 
       // 3. ✅ IMPROVED: Go to parent route first
-      const parentRoute = getParentRoute(currentPath);
+      const parentRoute = ROUTE_HIERARCHY[currentPath]?.parent;
       if (parentRoute) {
         console.log('⬅️ Going to parent route:', parentRoute);
-        navigate(parentRoute);
+        navigateRef.current(parentRoute);
         return;
       }
 
@@ -206,7 +213,7 @@ export const NavigationProvider = ({ children }) => {
       // 5. Fallback - use stack or exit
       if (currentStack.length > 1) {
         console.log('⬅️ Fallback: Using navigation stack...');
-        navigate(-1);
+        navigateRef.current(-1);
       } else {
         console.log('🚪 Fallback: Exiting app...');
         App.exitApp();
@@ -219,7 +226,7 @@ export const NavigationProvider = ({ children }) => {
         console.log('🧹 Back listener cleaned up');
       });
     };
-  }, [navigate, backCallbacks, getParentRoute]);
+  }, [navigate]);
 
   return (
     <NavigationContext.Provider

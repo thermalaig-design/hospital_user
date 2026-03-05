@@ -471,10 +471,14 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
     setSlotDoctor(doc);
     setSelectedDoctor(doc);
     setSlotPreFilled(false); // reset pre-fill flag
+    
+    // Ensure doctorName is captured with proper fallbacks
+    const docName = doc?.consultant_name || doc?.name || doc?.doctor_name || 'Unknown';
+    
     setAppointmentForm(prev => ({
       ...prev,
       doctor: String(doc.id),
-      doctorName: doc.consultant_name,
+      doctorName: docName,
       department: doc.department,
       opdType: '',
       date: '',
@@ -729,10 +733,14 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
     const doctorId = e.target.value;
     const doctor = doctors.find(d => String(d.original_id) === String(doctorId) || String(d.id) === String(doctorId) || String(d['S. No.']) === String(doctorId));
     setSelectedDoctor(doctor);
+    
+    // Ensure doctorName is captured with proper fallbacks
+    const docName = doctor?.consultant_name || doctor?.name || doctor?.doctor_name || '';
+    
     setAppointmentForm({
       ...appointmentForm,
       doctor: doctorId,
-      doctorName: doctor?.consultant_name || '',
+      doctorName: docName,
       department: doctor?.department || '',
       opdType: ''
     });
@@ -853,26 +861,29 @@ const Appointments = ({ onNavigate, appointmentForm, setAppointmentForm }) => {
       if (!backendNotificationSent) {
         const patientPhone = String(pendingAppointmentData?.patient_phone || '').trim();
         const digits = patientPhone.replace(/\D/g, '');
-        const recipientIds = new Set();
-        if (patientPhone) recipientIds.add(patientPhone);
-        if (digits) {
-          recipientIds.add(digits);
-          if (digits.length >= 10) recipientIds.add(digits.slice(-10));
-        }
+        const recipientId = digits.length >= 10 ? digits.slice(-10) : (digits || patientPhone);
 
         const patientName = pendingAppointmentData?.patient_name || 'Patient';
-        const bookingMsg = `✅ Appointment Booked\n👤 ${patientName}\n🆔 #${appointmentId || ''}`;
-        const notifications = [...recipientIds].map((userId) => ({
-          user_id: userId,
+        const doctorName = pendingAppointmentData?.doctor_name || pendingAppointmentData?.doctorName || 'Doctor Not Assigned';
+        const department = pendingAppointmentData?.department || 'General';
+        const appointmentDate = pendingAppointmentData?.appointment_date || 'Not specified';
+        const appointmentTime = pendingAppointmentData?.appointment_time || 'Not specified';
+        const bookingMsg =
+          `Hello ${patientName}, your appointment has been booked successfully. ` +
+          `Doctor: ${doctorName} | Department: ${department} | ` +
+          `Date: ${appointmentDate} at ${appointmentTime} | ` +
+          `Appointment ID: #${appointmentId || 'N/A'} | Status: Booked`;
+        const notificationPayload = {
+          user_id: recipientId,
           title: '✅ Appointment Booked',
           message: bookingMsg,
           type: 'appointment_insert',
           is_read: false,
           created_at: new Date().toISOString(),
-        }));
+        };
 
-        if (notifications.length > 0) {
-          const { error: notifError } = await supabase.from('notifications').insert(notifications);
+        if (recipientId) {
+          const { error: notifError } = await supabase.from('notifications').insert(notificationPayload);
           if (notifError) {
             console.error('⚠️ Fallback booking notification failed:', notifError);
           }

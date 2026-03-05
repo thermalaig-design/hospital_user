@@ -3,6 +3,7 @@ import { User, Users, Stethoscope, Building2, Star, Award, ChevronRight, Chevron
 import Sidebar from './components/Sidebar';
 import { getAllMembers, getAllCommitteeMembers, getAllHospitals, getAllElectedMembers, getProfilePhotos } from './services/api';
 import { getOpdDoctors } from './services/supabaseService';
+import { registerSidebarState, useAndroidBack } from './hooks';
 
 const CACHE_KEY_HTD = 'healthcare_trustee_directory_cache';
 const CACHE_TIMESTAMP_KEY_HTD = 'healthcare_trustee_directory_cache_timestamp';
@@ -26,6 +27,7 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [dataLoaded, setDataLoaded] = useState(false);
   const itemsPerPage = 20;
+  const { registerBackHandler } = useAndroidBack();
 
   // Ref to track previous filtered members to avoid infinite loop
   const previousFilteredRef = useRef([]);
@@ -62,6 +64,33 @@ const HealthcareTrusteeDirectory = ({ onNavigate }) => {
       document.body.style.touchAction = 'auto';
     };
   }, [isMenuOpen]);
+
+  // Register sidebar state so Android hardware back closes sidebar first.
+  useEffect(() => {
+    registerSidebarState(isMenuOpen, () => setIsMenuOpen(false));
+  }, [isMenuOpen]);
+
+  // Handle Android hardware back inside directory flow before leaving route.
+  useEffect(() => {
+    if (!isMenuOpen && !selectedDirectory) return undefined;
+
+    const unregister = registerBackHandler(() => {
+      if (isMenuOpen) {
+        setIsMenuOpen(false);
+        return;
+      }
+
+      if (selectedDirectory) {
+        setSelectedDirectory(null);
+        setActiveTab(null);
+        setSearchQuery('');
+      }
+    });
+
+    return () => {
+      unregister?.();
+    };
+  }, [isMenuOpen, selectedDirectory]);
 
   // Fetch all members, hospitals and member types when component mounts
   const fetchMembers = async (isBackground = false) => {

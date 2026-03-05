@@ -9,6 +9,15 @@ import { registerSidebarState } from './hooks';
 import { supabase } from './services/supabaseClient';
 import { getCurrentNotificationContext, matchesNotificationForContext } from './services/notificationAudience';
 
+const buildNotificationContentKey = (notification) => {
+  const title = String(notification?.title || '').trim().toLowerCase();
+  const message = String(notification?.message || notification?.body || '').trim().toLowerCase();
+  const type = String(notification?.type || '').trim().toLowerCase();
+  const createdAt = String(notification?.created_at || '').trim();
+  const createdAtSecond = createdAt ? createdAt.slice(0, 19) : '';
+  return `${type}|${title}|${message}|${createdAtSecond}`;
+};
+
 
 /* eslint-disable react-refresh/only-export-components */
 const Home = ({ onNavigate, onLogout, isMember }) => {
@@ -311,11 +320,14 @@ const Home = ({ onNavigate, onLogout, isMember }) => {
             if (isForMe) {
               console.log('✅ Real-time notification received on Home:', newNotif.title);
               setNotifications((prev) => {
-                // Duplicate avoid karo
-                if (prev.some(n => n.id === newNotif.id)) return prev;
+                const existingKeys = new Set(prev.map(buildNotificationContentKey));
+                const newKey = buildNotificationContentKey(newNotif);
+                if (existingKeys.has(newKey)) return prev;
+                if (!newNotif.is_read) {
+                  setUnreadCount((count) => count + 1);
+                }
                 return [newNotif, ...prev];
               });
-              setUnreadCount((prev) => prev + 1);
             }
           }
         )

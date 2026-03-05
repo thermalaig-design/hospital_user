@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Home as HomeIcon, Users, Clock, FileText, UserPlus, ChevronRight, LogOut, Image, User, Share2, Code } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { Share } from '@capacitor/share';
 import { getProfile } from '../services/api';
 
 // Calculate profile completion % based on filled fields
@@ -249,25 +251,44 @@ const Sidebar = ({ isOpen, onClose, onNavigate, currentPage }) => {
             <button
               onClick={async () => {
                 const APP_URL = 'https://play.google.com/store/apps/details?id=com.maharajaagarsen.app';
+                const shareText = 'MAH SETU App - Maharaja Agrasen Hospital ka official app. Download karo Google Play Store se:';
                 const shareData = {
-                  title: 'MAH SETU – Maharaja Agrasen Hospital',
-                  text: '🏥 MAH SETU App – Maharaja Agrasen Hospital ka official app. Download karo Google Play Store se:',
+                  title: 'MAH SETU - Maharaja Agrasen Hospital',
+                  text: shareText,
                   url: APP_URL,
                 };
                 try {
+                  if (Capacitor.isNativePlatform()) {
+                    await Share.share({
+                      title: shareData.title,
+                      text: `${shareText} ${APP_URL}`,
+                      url: APP_URL,
+                      dialogTitle: 'Share MAH SETU App',
+                    });
+                    return;
+                  }
+
                   if (navigator.share) {
                     await navigator.share(shareData);
+                    return;
+                  }
+
+                  if (navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(`${shareText} ${APP_URL}`);
+                    setShareToast(true);
+                    setTimeout(() => setShareToast(false), 2500);
                   } else {
-                    await navigator.clipboard.writeText(`${shareData.text} ${APP_URL}`);
                     setShareToast(true);
                     setTimeout(() => setShareToast(false), 2500);
                   }
                 } catch (err) {
                   if (err?.name === 'AbortError') return;
                   try {
-                    await navigator.clipboard.writeText(APP_URL);
-                    setShareToast(true);
-                    setTimeout(() => setShareToast(false), 2500);
+                    if (navigator.clipboard?.writeText) {
+                      await navigator.clipboard.writeText(`${shareText} ${APP_URL}`);
+                      setShareToast(true);
+                      setTimeout(() => setShareToast(false), 2500);
+                    }
                   } catch { /* nothing */ }
                 }
               }}
@@ -324,3 +345,4 @@ const Sidebar = ({ isOpen, onClose, onNavigate, currentPage }) => {
 };
 
 export default Sidebar;
+
