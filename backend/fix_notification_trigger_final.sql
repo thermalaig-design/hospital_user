@@ -43,9 +43,9 @@ BEGIN
       CASE 
         -- Both remark and date/time changed
         WHEN OLD.remark IS DISTINCT FROM NEW.remark AND (OLD.appointment_date IS DISTINCT FROM NEW.appointment_date OR OLD.appointment_time IS DISTINCT FROM NEW.appointment_time) THEN
-          'Hello ' || NEW.patient_name || ', your appointment (Membership: ' || COALESCE(NEW.membership_number, 'N/A') || ') with Dr. ' || NEW.doctor_name || ' has been rescheduled.' || E'\n\n' ||
+          'Hello ' || NEW.patient_name || ', your appointment (Membership: ' || COALESCE(NEW.membership_number, 'N/A') || ') with ' || NEW.doctor_name || ' has been rescheduled.' || E'\n\n' ||
           '👤 Patient: ' || NEW.patient_name || E'\n' ||
-          '👨‍⚕️ Doctor: Dr. ' || NEW.doctor_name || E'\n' ||
+          '👨‍⚕️ Doctor: ' || NEW.doctor_name || E'\n' ||
           CASE WHEN NEW.department IS NOT NULL THEN '🏥 Department: ' || NEW.department || E'\n' ELSE '' END ||
           '📅 Previous Date & Time: ' || old_date_formatted || ' ' || old_time_str || E'\n' ||
           '➡️ New Date & Time: ' || new_date_formatted || ' ' || new_time_str || E'\n\n' ||
@@ -53,9 +53,9 @@ BEGIN
           '"' || COALESCE(NEW.remark, 'No message') || '"'
         -- Only remark changed
         WHEN OLD.remark IS DISTINCT FROM NEW.remark THEN
-          'Hello ' || NEW.patient_name || ', you have received a new message regarding your appointment (Membership: ' || COALESCE(NEW.membership_number, 'N/A') || ') with Dr. ' || NEW.doctor_name || '.' || E'\n\n' ||
+          'Hello ' || NEW.patient_name || ', you have received a new message regarding your appointment (Membership: ' || COALESCE(NEW.membership_number, 'N/A') || ') with ' || NEW.doctor_name || '.' || E'\n\n' ||
           '👤 Patient: ' || NEW.patient_name || E'\n' ||
-          '👨‍⚕️ Doctor: Dr. ' || NEW.doctor_name || E'\n' ||
+          '👨‍⚕️ Doctor: ' || NEW.doctor_name || E'\n' ||
           CASE WHEN NEW.department IS NOT NULL THEN '🏥 Department: ' || NEW.department || E'\n' ELSE '' END ||
           '📅 Appointment Date: ' || new_date_formatted || E'\n' ||
           CASE WHEN NEW.appointment_time IS NOT NULL THEN '🕐 Appointment Time: ' || new_time_str || E'\n' ELSE '' END ||
@@ -63,9 +63,9 @@ BEGIN
           '"' || COALESCE(NEW.remark, 'No message') || '"'
         -- Only date/time changed
         WHEN OLD.appointment_date IS DISTINCT FROM NEW.appointment_date OR OLD.appointment_time IS DISTINCT FROM NEW.appointment_time THEN
-          'Hello ' || NEW.patient_name || ', your appointment (Membership: ' || COALESCE(NEW.membership_number, 'N/A') || ') with Dr. ' || NEW.doctor_name || ' has been rescheduled.' || E'\n\n' ||
+          'Hello ' || NEW.patient_name || ', your appointment (Membership: ' || COALESCE(NEW.membership_number, 'N/A') || ') with ' || NEW.doctor_name || ' has been rescheduled.' || E'\n\n' ||
           '👤 Patient: ' || NEW.patient_name || E'\n' ||
-          '👨‍⚕️ Doctor: Dr. ' || NEW.doctor_name || E'\n' ||
+          '👨‍⚕️ Doctor: ' || NEW.doctor_name || E'\n' ||
           CASE WHEN NEW.department IS NOT NULL THEN '🏥 Department: ' || NEW.department || E'\n' ELSE '' END ||
           '📅 Previous Date & Time: ' || old_date_formatted || ' ' || old_time_str || E'\n' ||
           '➡️ New Date & Time: ' || new_date_formatted || ' ' || new_time_str
@@ -117,4 +117,5 @@ SELECT
   action_statement
 FROM information_schema.triggers 
 WHERE trigger_name = 'appointment_changes_notification_trigger';
+
 

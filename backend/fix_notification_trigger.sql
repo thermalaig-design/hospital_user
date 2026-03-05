@@ -22,17 +22,17 @@ BEGIN
         WHEN OLD.remark IS DISTINCT FROM NEW.remark AND (OLD.appointment_date IS DISTINCT FROM NEW.appointment_date OR OLD.appointment_time IS DISTINCT FROM NEW.appointment_time) THEN
           'Appointment Rescheduled'
         WHEN OLD.remark IS DISTINCT FROM NEW.remark THEN
-          'New Message Regarding Your Appointment'
+          'Appointment Booked Successfully'
         WHEN OLD.appointment_date IS DISTINCT FROM NEW.appointment_date OR OLD.appointment_time IS DISTINCT FROM NEW.appointment_time THEN
           'Appointment Rescheduled'
       END,
       CASE 
         WHEN OLD.remark IS DISTINCT FROM NEW.remark AND (OLD.appointment_date IS DISTINCT FROM NEW.appointment_date OR OLD.appointment_time IS DISTINCT FROM NEW.appointment_time) THEN
-          'Hi there! Your appointment with Dr. ' || NEW.doctor_name || ' has been rescheduled from ' || OLD.appointment_date || ' at ' || COALESCE(TO_CHAR(OLD.appointment_time, 'HH12:MI AM'), 'time not specified') || ' to ' || NEW.appointment_date || ' at ' || COALESCE(TO_CHAR(NEW.appointment_time, 'HH12:MI AM'), 'time not specified') || '. New message: ' || COALESCE(NEW.remark, 'No message')
+          'Hi there! Your appointment with ' || NEW.doctor_name || ' has been rescheduled from ' || OLD.appointment_date || ' at ' || COALESCE(TO_CHAR(OLD.appointment_time, 'HH12:MI AM'), 'time not specified') || ' to ' || NEW.appointment_date || ' at ' || COALESCE(TO_CHAR(NEW.appointment_time, 'HH12:MI AM'), 'time not specified') || '. New message: ' || COALESCE(NEW.remark, 'No message')
         WHEN OLD.remark IS DISTINCT FROM NEW.remark THEN
-          'Hi there! New message regarding your appointment with Dr. ' || NEW.doctor_name || ': "' || COALESCE(NEW.remark, 'No message') || '"'
+          'Hi there! New message regarding your appointment with ' || NEW.doctor_name || ': "' || COALESCE(NEW.remark, 'No message') || '"'
         WHEN OLD.appointment_date IS DISTINCT FROM NEW.appointment_date OR OLD.appointment_time IS DISTINCT FROM NEW.appointment_time THEN
-          'Hi there! Your appointment with Dr. ' || NEW.doctor_name || ' has been rescheduled from ' || OLD.appointment_date || ' at ' || COALESCE(TO_CHAR(OLD.appointment_time, 'HH12:MI AM'), 'time not specified') || ' to ' || NEW.appointment_date || ' at ' || COALESCE(TO_CHAR(NEW.appointment_time, 'HH12:MI AM'), 'time not specified')
+          'Hi there! Your appointment with' || NEW.doctor_name || ' has been rescheduled from ' || OLD.appointment_date || ' at ' || COALESCE(TO_CHAR(OLD.appointment_time, 'HH12:MI AM'), 'time not specified') || ' to ' || NEW.appointment_date || ' at ' || COALESCE(TO_CHAR(NEW.appointment_time, 'HH12:MI AM'), 'time not specified')
       END,
       'appointment_update',
       NOW()
@@ -51,17 +51,17 @@ BEGIN
         WHEN OLD.remark IS DISTINCT FROM NEW.remark AND (OLD.appointment_date IS DISTINCT FROM NEW.appointment_date OR OLD.appointment_time IS DISTINCT FROM NEW.appointment_time) THEN
           'Appointment Rescheduled'
         WHEN OLD.remark IS DISTINCT FROM NEW.remark THEN
-          'New Message Regarding Appointment'
+          'Appointment Booked Successfully'
         WHEN OLD.appointment_date IS DISTINCT FROM NEW.appointment_date OR OLD.appointment_time IS DISTINCT FROM NEW.appointment_time THEN
           'Appointment Rescheduled'
       END,
       CASE 
         WHEN OLD.remark IS DISTINCT FROM NEW.remark AND (OLD.appointment_date IS DISTINCT FROM NEW.appointment_date OR OLD.appointment_time IS DISTINCT FROM NEW.appointment_time) THEN
-          'Appointment #' || NEW.id || ' for ' || NEW.patient_name || ' with Dr. ' || NEW.doctor_name || ' has been rescheduled from ' || OLD.appointment_date || ' at ' || COALESCE(TO_CHAR(OLD.appointment_time, 'HH12:MI AM'), 'time not specified') || ' to ' || NEW.appointment_date || ' at ' || COALESCE(TO_CHAR(NEW.appointment_time, 'HH12:MI AM'), 'time not specified') || '. New message: ' || COALESCE(NEW.remark, 'No message')
+          'Appointment #' || NEW.id || ' for ' || NEW.patient_name || ' with ' || NEW.doctor_name || ' has been rescheduled from ' || OLD.appointment_date || ' at ' || COALESCE(TO_CHAR(OLD.appointment_time, 'HH12:MI AM'), 'time not specified') || ' to ' || NEW.appointment_date || ' at ' || COALESCE(TO_CHAR(NEW.appointment_time, 'HH12:MI AM'), 'time not specified') || '. New message: ' || COALESCE(NEW.remark, 'No message')
         WHEN OLD.remark IS DISTINCT FROM NEW.remark THEN
-          'Appointment #' || NEW.id || ' for ' || NEW.patient_name || ' with Dr. ' || NEW.doctor_name || ' has a new message: ' || COALESCE(NEW.remark, 'No message')
+          'Appointment #' || NEW.id || ' for ' || NEW.patient_name || ' with ' || NEW.doctor_name || ' has a new message: ' || COALESCE(NEW.remark, 'No message')
         WHEN OLD.appointment_date IS DISTINCT FROM NEW.appointment_date OR OLD.appointment_time IS DISTINCT FROM NEW.appointment_time THEN
-          'Appointment #' || NEW.id || ' for ' || NEW.patient_name || ' with Dr. ' || NEW.doctor_name || ' date has been changed from ' || OLD.appointment_date || ' at ' || COALESCE(TO_CHAR(OLD.appointment_time, 'HH12:MI AM'), 'time not specified') || ' to ' || NEW.appointment_date || ' at ' || COALESCE(TO_CHAR(NEW.appointment_time, 'HH12:MI AM'), 'time not specified')
+          'Appointment #' || NEW.id || ' for ' || NEW.patient_name || ' with ' || NEW.doctor_name || ' date has been changed from ' || OLD.appointment_date || ' at ' || COALESCE(TO_CHAR(OLD.appointment_time, 'HH12:MI AM'), 'time not specified') || ' to ' || NEW.appointment_date || ' at ' || COALESCE(TO_CHAR(NEW.appointment_time, 'HH12:MI AM'), 'time not specified')
       END,
       'appointment_update_admin',
       NOW()
