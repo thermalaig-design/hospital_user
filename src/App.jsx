@@ -41,7 +41,7 @@ import {
 
 const HospitalTrusteeApp = () => {
   const LAST_VISITED_ROUTE_KEY = 'lastVisitedRoute';
-  const PUBLIC_ROUTES = ['/login', '/otp-verification', '/special-otp-verification', '/terms-and-conditions', '/privacy-policy'];
+  const PUBLIC_ROUTES = ['/login', '/otp-verification', '/special-otp-verification', '/terms-and-conditions', '/privacy-policy', '/developers'];
   const navigate = useNavigate();
   const location = useLocation();
   const [isMember] = useState(true);
@@ -908,12 +908,10 @@ const HospitalTrusteeApp = () => {
         <Route
           path="/developers"
           element={
-            <ProtectedRoute>
-              <DeveloperDetails
-                onNavigateBack={() => navigate(-1)}
-                onNavigate={handleNavigate}
-              />
-            </ProtectedRoute>
+            <DeveloperDetails
+              onNavigateBack={() => navigate(-1)}
+              onNavigate={handleNavigate}
+            />
           }
         />
         <Route

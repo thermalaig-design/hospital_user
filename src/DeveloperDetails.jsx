@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import {
   ChevronLeft, Code2, Database, Palette,
   Mail, Phone, Copy, Check, Home as HomeIcon,
-  Smartphone, Shield, Zap, Globe
+  Smartphone, Shield, Zap, Globe, MapPin
 } from 'lucide-react';
 
 const PHONE = '9312234636';
 const EMAIL = 'thermal.aig@gmail.com';
+const ADDRESS = '4TH FLOOR, C-57, TEI TOWER, WAZIRPUR INDUSTRIAL AREA, New Delhi, North West Delhi, Delhi, 110052';
 
 const team = [
   {
@@ -71,12 +72,14 @@ const features = [
 const DeveloperDetails = ({ onNavigateBack, onNavigate }) => {
   const [copiedEmail, setCopiedEmail] = useState(false);
   const [copiedPhone, setCopiedPhone] = useState(false);
+  const [copiedAddress, setCopiedAddress] = useState(false);
 
   const copyText = async (text, type) => {
     try {
       await navigator.clipboard.writeText(text);
       if (type === 'email') { setCopiedEmail(true); setTimeout(() => setCopiedEmail(false), 2000); }
-      else { setCopiedPhone(true); setTimeout(() => setCopiedPhone(false), 2000); }
+      else if (type === 'phone') { setCopiedPhone(true); setTimeout(() => setCopiedPhone(false), 2000); }
+      else if (type === 'address') { setCopiedAddress(true); setTimeout(() => setCopiedAddress(false), 2000); }
     } catch { }
   };
 
@@ -164,6 +167,16 @@ const DeveloperDetails = ({ onNavigateBack, onNavigate }) => {
                 {copiedPhone ? <><Check className="h-3 w-3" /> Done</> : <><Copy className="h-3 w-3" /> Copy</>}
               </button>
             </a>
+            {/* Address */}
+            <div className="flex items-center gap-3 px-5 py-4 hover:bg-gray-50 transition-colors">
+              <div className="w-9 h-9 bg-purple-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                <MapPin className="h-4 w-4 text-purple-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Address</p>
+                <p className="text-sm font-semibold text-gray-700">{ADDRESS}</p>
+              </div>
+            </div>
           </div>
         </div>
 
